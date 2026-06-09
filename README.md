@@ -503,10 +503,15 @@ Add the package to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/hakkabon/NetworkGraph.git", from: "1.0.0"),
+    .package(url: "https://github.com/hakkabon/NetworkGraph.git", branch: "main"),
 ],
 targets: [
-    .target(name: "MyApp", dependencies: ["NetworkGraph"]),
+    .target(
+        name: "MyApp", 
+        dependencies: [
+            .product(name: "NetworkGraph", package: "NetworkGraph"),
+        ]
+    ),
 ]
 ```
 
