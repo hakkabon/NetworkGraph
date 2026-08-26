@@ -35,9 +35,10 @@ public func topologicalSort<G: IncidenceGraph & VertexListGraph> (graph: G) -> [
         colorMap.put(key: u, value: .white)
     }
     
-    // walk the graph
+    // walk the graph in deterministic order
     let visitor = AccumulatorVisitor<G.Vertex>()
-    for root in roots {
+    let orderedRoots = graph.vertices.filter { roots.contains($0) }
+    for root in orderedRoots {
         depthFirstSearch(graph: graph, startVertex: root, colorMap: &colorMap, visitor: visitor)
     }
     return visitor.accumulator

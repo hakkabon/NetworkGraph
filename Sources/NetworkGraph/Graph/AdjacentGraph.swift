@@ -22,7 +22,7 @@ import Foundation
 /// g[Edge(u: 0, v: 1)] = WeightedEdge(weight: 3.5)
 /// g[0] = "Alpha"
 /// ```
-public struct AdjacentGraph<V: Hashable & Codable, W: Hashable & Codable> {
+public struct AdjacentGraph<V: Hashable & Codable & Sendable, W: Hashable & Codable & Sendable>: Sendable {
 
     // MARK: Type aliases
 
@@ -161,14 +161,24 @@ extension AdjacentGraph: PropertyGraph {
 
     /// Read/write the edge property for edge `e` (force-unwraps; edge must exist).
     public subscript(e: Edge) -> W {
-        get { edgeProperties[e]! }
-        set { edgeProperties[e] = newValue }
+        get { (edgeProperties[e] ?? (graphType == .undirected ? edgeProperties[e.reversed()] : nil))! }
+        set {
+            edgeProperties[e] = newValue
+            if graphType == .undirected && e.u != e.v {
+                edgeProperties[e.reversed()] = newValue
+            }
+        }
     }
 
     /// Safe read/write: returns `nil` if edge `e` has no property set.
     public subscript(safe e: Edge) -> W? {
-        get { edgeProperties[e] }
-        set { edgeProperties[e] = newValue }
+        get { edgeProperties[e] ?? (graphType == .undirected ? edgeProperties[e.reversed()] : nil) }
+        set {
+            edgeProperties[e] = newValue
+            if graphType == .undirected && e.u != e.v {
+                edgeProperties[e.reversed()] = newValue
+            }
+        }
     }
 }
 

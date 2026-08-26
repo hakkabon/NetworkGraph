@@ -15,7 +15,7 @@ import Foundation
 /// Conforming types are stored per-edge in `AdjacentGraph.edgeProperties`
 /// (the existing `[Edge: W]` dictionary) and are now accessible through the
 /// richer read/write API added to `AdjacentGraph`.
-public protocol EdgeAttributesProtocol: Hashable & Codable {
+public protocol EdgeAttributesProtocol: Hashable & Codable & Sendable {
     /// Human-readable label (may display cost, name, or relation).
     var label: String { get set }
 }

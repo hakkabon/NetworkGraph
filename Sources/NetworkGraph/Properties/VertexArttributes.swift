@@ -16,7 +16,7 @@ import Foundation
 /// and accessed through the graph's `vertex(at:)` / `setVertex(_:at:)` API.
 /// Custom vertex payloads (e.g. city names, node colours, ML features) should
 /// conform to this protocol.
-public protocol VertexAttributesProtocol: Hashable & Codable {
+public protocol VertexAttributesProtocol: Hashable & Codable & Sendable {
     /// Human-readable label shown in debug output and Graphviz exports.
     var label: String { get set }
 }

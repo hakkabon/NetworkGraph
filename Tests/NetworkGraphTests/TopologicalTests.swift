@@ -24,7 +24,7 @@ final class TopologicalTests: XCTestCase {
                               "topological violation: \(u) must appear before \(v) is finished")
         }
         // Deterministic result for this specific graph / DFS implementation
-        XCTAssertEqual(topology, [10, 3, 0, 8, 5, 11, 12, 9, 6, 2, 7, 4, 1])
+        XCTAssertEqual(topology, [10, 3, 0, 7, 8, 4, 5, 1, 11, 12, 9, 6, 2])
     }
 
     func testTopologicalSortLinearChain() throws {
