@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "NetworkGraph",
     platforms: [
-        .macOS(.v10_13), .iOS(.v12)
+        .macOS(.v12), .iOS(.v15), .macCatalyst(.v15)
      ],
     products: [
         .library(name: "NetworkGraph", targets: ["NetworkGraph"]),
@@ -16,12 +16,14 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser", from: "0.4.0"),
         .package(url: "https://github.com/johnsundell/files.git", from: "2.2.1"),
         .package(url: "https://github.com/SwiftDocOrg/GraphViz", from: "0.4.0"),
+        .package(url: "https://github.com/hakkabon/Swift-Layout.git", exact: "0.0.2"),
     ],
     targets: [
         .target(name: "NetworkGraph",
                 dependencies: [
                     .product(name: "Files", package: "files"),
                     .product(name: "GraphViz", package: "GraphViz"),
+                    .product(name: "SwiftLayout", package: "Swift-Layout"),
                 ],
 //                exclude: ["TestData"],
                 resources: [.process("TestData")]   // This has to be here, otherwise no `Bundle.module`.
