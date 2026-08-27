@@ -42,7 +42,7 @@ struct RandomCmd: ParsableCommand {
 
         print(" Graph generated: \(graph.vertexCount) vertices, \(graph.edgeCount) edges")
         if let outPath = output {
-            let vGraph = LayoutBridge.layoutSugiyama(graph: graph, title: "Random \(type.capitalized) Graph")
+            let vGraph = try LayoutBridge.layoutSugiyama(graph: graph, title: "Random \(type.capitalized) Graph")
             let svg = SVGGraphRenderer.renderToSVG(vGraph)
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
             print(" Exported visualization to \(outPath)")
@@ -77,7 +77,7 @@ struct MstCmd: ParsableCommand {
                     edgeLabels[e] = "\(Int(w))"
                 }
             }
-            let vGraph = LayoutBridge.layoutSugiyama(
+            let vGraph = try LayoutBridge.layoutSugiyama(
                 graph: weightedGraph,
                 title: "Minimum Spanning Tree (Weight: \(mst.totalWeight))",
                 highlightEdges: Set(mst.edges),
@@ -143,7 +143,7 @@ struct FlowCmd: ParsableCommand {
                 }
             }
 
-            let vGraph = LayoutBridge.layoutSugiyama(
+            let vGraph = try LayoutBridge.layoutSugiyama(
                 graph: solvedNet,
                 title: "Dinic Max Flow: \(maxF)",
                 highlightEdges: hlEdges,
@@ -175,7 +175,7 @@ struct ColorCmd: ParsableCommand {
             for (v, c) in result.colors {
                 nodeColors[v] = theme.palette[c % theme.palette.count]
             }
-            let vGraph = LayoutBridge.layoutSugiyama(
+            let vGraph = try LayoutBridge.layoutSugiyama(
                 graph: graph,
                 title: "Vertex Coloring (χ = \(result.chromaticNumber))",
                 nodeColors: nodeColors
@@ -200,7 +200,7 @@ struct MatchCmd: ParsableCommand {
         print("   Matched Edges: \(matching.matchedEdges)")
 
         if let outPath = output {
-            let vGraph = LayoutBridge.layoutSugiyama(
+            let vGraph = try LayoutBridge.layoutSugiyama(
                 graph: graph,
                 title: "Maximum Bipartite Matching (\(matching.cardinality) pairs)",
                 highlightEdges: Set(matching.matchedEdges)

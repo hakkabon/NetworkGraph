@@ -25,7 +25,7 @@ final class VisualizationTests: XCTestCase {
             }
         }
 
-        let vGraph = LayoutBridge.layoutSugiyama(
+        let vGraph = try LayoutBridge.layoutSugiyama(
             graph: solvedNet,
             title: "Dinic Max Flow Network",
             highlightEdges: hlEdges,
@@ -63,5 +63,52 @@ final class VisualizationTests: XCTestCase {
         let svg = SVGGraphRenderer.renderToSVG(vGraph)
         XCTAssertTrue(svg.contains("TSP Tour"))
         XCTAssertTrue(svg.contains("filter=\"url(#glow)\""))
+    }
+
+    func testRustLayoutPreservesPinnedRanksAndRoutesByStableID() throws {
+        var graph = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .directed)
+        _ = graph.addEdge(u: 0, v: 1)
+        _ = graph.addEdge(u: 1, v: 2)
+
+        let options = GraphLayoutOptions(
+            rankHints: [
+                0: GraphRankHint(rank: 0, constraint: .pinned),
+                2: GraphRankHint(rank: 2, constraint: .pinned)
+            ],
+            edgeLabels: [Edge(u: 0, v: 1): "first"]
+        )
+        let visual = try GraphLayoutEngine().layout(graph, options: options)
+
+        XCTAssertEqual(visual.nodes.first(where: { $0.id == 0 })?.rank, 0)
+        XCTAssertEqual(visual.nodes.first(where: { $0.id == 2 })?.rank, 2)
+        XCTAssertEqual(visual.edges.map(\.id), [0, 1])
+        XCTAssertTrue(visual.edges.allSatisfy { !$0.segments.isEmpty })
+        XCTAssertNotNil(visual.edges.first?.labelPosition)
+    }
+
+    func testRustLayoutCanonicalizesUndirectedEdges() throws {
+        var graph = AdjacentGraph<Int, NoProperty>(vertices: [0, 1], kind: .undirected)
+        _ = graph.addEdge(u: 0, v: 1)
+
+        let visual = try GraphLayoutEngine().layout(graph)
+
+        XCTAssertEqual(visual.edges.count, 1)
+        XCTAssertFalse(visual.isDirected)
+    }
+
+    func testBipartiteValidationRejectsIncompletePartitionsBeforeFFI() throws {
+        let graph = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .undirected)
+        let options = GraphLayoutOptions(mode: .bipartite(partitionU: [0], partitionV: [1]))
+
+        XCTAssertThrowsError(try GraphLayoutEngine().layout(graph, options: options)) { error in
+            XCTAssertEqual(error as? GraphLayoutError, .incompletePartitions(missing: [2]))
+        }
+    }
+
+    func testEmptyCircularLayoutDoesNotDivideByZero() {
+        let graph = AdjacentGraph<Int, NoProperty>(vertices: [], kind: .undirected)
+        let visual = LayoutBridge.layoutCircular(graph: graph, tour: [])
+        XCTAssertTrue(visual.nodes.isEmpty)
+        XCTAssertTrue(visual.edges.isEmpty)
     }
 }

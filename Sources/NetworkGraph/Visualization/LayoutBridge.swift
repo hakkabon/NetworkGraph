@@ -1,28 +1,36 @@
-//
-//  LayoutBridge.swift
-//  NetworkGraph
-//
-//  Copyright © 2024 hakkabon software. All rights reserved.
-//
-
 import Foundation
+import SwiftLayout
 
-// MARK: - Core Visual Primitives
+// MARK: - Render model
 
-/// A 2D point for graph rendering.
 public struct VisualPoint: Hashable, Sendable {
     public var x: Double
     public var y: Double
     public init(x: Double, y: Double) { self.x = x; self.y = y }
 }
 
-/// A named partition lane shown as a labelled column or row divider.
+public enum VisualPathSegment: Hashable, Sendable {
+    case line(start: VisualPoint, end: VisualPoint)
+    case cubicCurve(start: VisualPoint, control1: VisualPoint, control2: VisualPoint, end: VisualPoint)
+}
+
+public struct VisualArrowhead: Hashable, Sendable {
+    public var tip: VisualPoint
+    public var angle: Double
+    public var left: VisualPoint
+    public var right: VisualPoint
+
+    public init(tip: VisualPoint, angle: Double, left: VisualPoint, right: VisualPoint) {
+        self.tip = tip
+        self.angle = angle
+        self.left = left
+        self.right = right
+    }
+}
+
 public struct VisualPartition: Sendable {
-    /// Human-readable label (e.g. "U", "V", "Workers", "Jobs").
     public var label: String
-    /// Vertex indices belonging to this partition.
     public var members: [Int]
-    /// Accent color for the partition lane background (CSS hex, 10% opacity applied automatically).
     public var color: String
 
     public init(label: String, members: [Int], color: String) {
@@ -32,16 +40,10 @@ public struct VisualPartition: Sendable {
     }
 }
 
-/// A bounding hull (rounded rectangle) drawn behind a group of vertices —
-/// used to delineate connected components, SCCs, cliques, or matching sides.
 public struct VisualHull: Sendable {
-    /// Vertex indices enclosed by the hull.
     public var members: [Int]
-    /// CSS hex fill color (applied at reduced opacity).
     public var fillColor: String
-    /// CSS hex stroke color.
     public var strokeColor: String
-    /// Optional text label shown at the top-left of the hull.
     public var label: String?
 
     public init(members: [Int], fillColor: String, strokeColor: String, label: String? = nil) {
@@ -52,8 +54,6 @@ public struct VisualHull: Sendable {
     }
 }
 
-/// A small numbered badge (circle) placed on an edge midpoint or vertex to indicate
-/// step sequence in a tour (TSP, Euler, Chinese Postman, k-shortest path).
 public struct VisualBadge: Sendable {
     public var position: VisualPoint
     public var number: Int
@@ -68,18 +68,14 @@ public struct VisualBadge: Sendable {
     }
 }
 
-/// Visual representation of a vertex.
 public struct VisualNode: Sendable {
     public let id: Int
     public var label: String
     public var x: Double
     public var y: Double
-    /// CSS hex fill override; nil = use theme default.
     public var color: String?
     public var isHighlighted: Bool
-    /// Render a diamond/star shape to indicate a cut node (articulation point).
     public var isCutNode: Bool
-    /// Rank / layer index for documentation and rank-constraint debugging.
     public var rank: Int
 
     public init(id: Int, label: String, x: Double = 0, y: Double = 0,
@@ -96,50 +92,58 @@ public struct VisualNode: Sendable {
     }
 }
 
-/// Visual representation of an edge with routing waypoints and annotations.
 public struct VisualEdge: Sendable {
+    public let id: UInt64
     public let from: Int
     public let to: Int
     public var label: String?
     public var isHighlighted: Bool
-    /// Step number in a tour / path sequence (used to render numbered badges).
     public var sequenceNumber: Int?
-    /// Control points: [start, ...intermediates..., end] for straight or curved rendering.
     public var waypoints: [VisualPoint]
-    /// When true the edge is a matching pair — rendered with a distinct paired style.
+    public var segments: [VisualPathSegment]
+    public var labelPosition: VisualPoint?
+    public var arrowhead: VisualArrowhead?
+    public var isReversed: Bool
+    public var isSelfLoop: Bool
     public var isMatched: Bool
 
-    public init(from: Int, to: Int, label: String? = nil, isHighlighted: Bool = false,
-                sequenceNumber: Int? = nil, waypoints: [VisualPoint] = [], isMatched: Bool = false) {
+    public init(id: UInt64 = 0, from: Int, to: Int, label: String? = nil,
+                isHighlighted: Bool = false, sequenceNumber: Int? = nil,
+                waypoints: [VisualPoint] = [], segments: [VisualPathSegment] = [],
+                labelPosition: VisualPoint? = nil, arrowhead: VisualArrowhead? = nil,
+                isReversed: Bool = false, isSelfLoop: Bool = false,
+                isMatched: Bool = false) {
+        self.id = id
         self.from = from
         self.to = to
         self.label = label
         self.isHighlighted = isHighlighted
         self.sequenceNumber = sequenceNumber
         self.waypoints = waypoints
+        self.segments = segments
+        self.labelPosition = labelPosition
+        self.arrowhead = arrowhead
+        self.isReversed = isReversed
+        self.isSelfLoop = isSelfLoop
         self.isMatched = isMatched
     }
 }
 
-/// A fully positioned and styled graph ready for SVG / visual export.
 public struct VisualGraph: Sendable {
     public var title: String
     public var nodes: [VisualNode]
     public var edges: [VisualEdge]
     public var width: Double
     public var height: Double
-
-    /// Bounding hulls for groups (components, SCCs, cliques).
     public var hulls: [VisualHull]
-    /// Sequence badges for tour steps.
     public var badges: [VisualBadge]
-    /// Named partition lanes (bipartite U/V, assignment workers/jobs).
     public var partitions: [VisualPartition]
+    public var isDirected: Bool
 
     public init(title: String = "Graph", nodes: [VisualNode] = [], edges: [VisualEdge] = [],
                 width: Double = 800, height: Double = 600,
                 hulls: [VisualHull] = [], badges: [VisualBadge] = [],
-                partitions: [VisualPartition] = []) {
+                partitions: [VisualPartition] = [], isDirected: Bool = true) {
         self.title = title
         self.nodes = nodes
         self.edges = edges
@@ -148,434 +152,463 @@ public struct VisualGraph: Sendable {
         self.hulls = hulls
         self.badges = badges
         self.partitions = partitions
+        self.isDirected = isDirected
     }
 }
 
-// MARK: - LayoutBridge
+// MARK: - Rust-backed layout
 
-/// Bridge between NetworkGraph and layout engines (Sugiyama, Layered, Bipartite, Circular).
-public enum LayoutBridge {
+public enum GraphRankConstraint: Sendable {
+    case preferred
+    case pinned
+}
 
-    // MARK: - 1. Sugiyama Hierarchical Layout
+public struct GraphRankHint: Sendable {
+    public var rank: Int
+    public var constraint: GraphRankConstraint
 
-    /// Generates a layered Sugiyama layout for an `AdjacentGraph`.
-    ///
-    /// - Parameters:
-    ///   - graph: The graph to lay out.
-    ///   - title: Title displayed in the SVG header.
-    ///   - highlightEdges: Edges to draw with the accent glow stroke.
-    ///   - highlightNodes: Vertex indices to draw with the accent ring.
-    ///   - cutNodes: Vertex indices to mark with the cut-node diamond indicator.
-    ///   - nodeColors: Per-vertex CSS hex fill overrides.
-    ///   - edgeLabels: Per-edge annotation text (e.g. "4/10" for flow/capacity).
-    ///   - tourSequence: Ordered vertex sequence forming a highlighted tour; edges between
-    ///                   consecutive vertices receive a step badge.
-    ///   - componentGroups: Groups of vertex indices to enclose in colored bounding hulls.
-    ///   - rankHints: Optional forced rank (layer) for specific vertices. Vertices with a hint
-    ///                are placed on that layer regardless of the computed longest-path rank.
-    ///   - theme: Visual theme (colors, sizes).
-    public static func layoutSugiyama<V, W>(
-        graph: AdjacentGraph<V, W>,
-        title: String = "Graph Layout",
-        highlightEdges: Set<Edge> = [],
-        highlightNodes: Set<Int> = [],
-        cutNodes: Set<Int> = [],
-        nodeColors: [Int: String] = [:],
-        edgeLabels: [Edge: String] = [:],
-        tourSequence: [Int]? = nil,
-        componentGroups: [[Int]]? = nil,
-        rankHints: [Int: Int] = [:],
-        theme: GraphVisualTheme = .modernDark
-    ) -> VisualGraph {
-        let n = graph.vertexCount
-        guard n > 0 else { return VisualGraph(title: title) }
+    public init(rank: Int, constraint: GraphRankConstraint = .preferred) {
+        self.rank = rank
+        self.constraint = constraint
+    }
+}
 
-        // ── Rank Assignment (Longest-Path BFS + optional forced hints) ──────────
-        let inDegrees = (0..<n).map { graph.indegree(vertex: $0) }
-        var layerMap = Array(repeating: 0, count: n)
+public enum GraphLayoutMode: Sendable {
+    case hierarchical
+    case bipartite(partitionU: [Int], partitionV: [Int], maxIterations: UInt32 = 8)
+}
 
-        // Apply forced rank hints first
-        for (v, r) in rankHints { if v < n { layerMap[v] = r } }
+public enum GraphLayoutDirection: Sendable { case topToBottom, leftToRight }
+public enum GraphLayoutRouting: Sendable { case straight, orthogonal, bezier }
+public enum GraphLayoutAlgorithm: Sendable { case brandesKopf, medianRelax }
 
-        var roots = (0..<n).filter { inDegrees[$0] == 0 && rankHints[$0] == nil }
-        if roots.isEmpty { roots = (0..<n).filter { rankHints[$0] == nil && inDegrees[$0] == 0 } }
-        if roots.isEmpty { roots = [0] }
+public struct GraphLayoutOptions: Sendable {
+    public var title: String
+    public var mode: GraphLayoutMode
+    public var rankHints: [Int: GraphRankHint]
+    public var highlightEdges: Set<Edge>
+    public var highlightNodes: Set<Int>
+    public var cutNodes: Set<Int>
+    public var nodeColors: [Int: String]
+    public var edgeLabels: [Edge: String]
+    public var matchedEdges: Set<Edge>
+    public var tourSequence: [Int]?
+    public var componentGroups: [[Int]]?
+    public var hullLabels: [String]?
+    public var partitions: [VisualPartition]
+    public var theme: GraphVisualTheme
+    public var direction: GraphLayoutDirection
+    public var routing: GraphLayoutRouting
+    public var algorithm: GraphLayoutAlgorithm
+    public var horizontalGap: Double
+    public var verticalGap: Double
+    public var relaxationPasses: UInt32
+    public var crossingSweeps: UInt32
+    public var canvasPadding: Double
+    public var titleHeight: Double
 
-        var queue = roots
-        var visited: Set<Int> = Set(roots)
-        // Seed hinted vertices as visited so BFS respects their forced rank
-        for (v, _) in rankHints { visited.insert(v) }
+    public init(title: String = "Graph Layout", mode: GraphLayoutMode = .hierarchical,
+                rankHints: [Int: GraphRankHint] = [:], highlightEdges: Set<Edge> = [],
+                highlightNodes: Set<Int> = [], cutNodes: Set<Int> = [],
+                nodeColors: [Int: String] = [:], edgeLabels: [Edge: String] = [:],
+                matchedEdges: Set<Edge> = [], tourSequence: [Int]? = nil,
+                componentGroups: [[Int]]? = nil, hullLabels: [String]? = nil,
+                partitions: [VisualPartition] = [], theme: GraphVisualTheme = .modernDark,
+                direction: GraphLayoutDirection = .topToBottom,
+                routing: GraphLayoutRouting = .bezier,
+                algorithm: GraphLayoutAlgorithm = .brandesKopf,
+                horizontalGap: Double = 80, verticalGap: Double = 80,
+                relaxationPasses: UInt32 = 8, crossingSweeps: UInt32 = 4,
+                canvasPadding: Double = 56, titleHeight: Double = 44) {
+        self.title = title
+        self.mode = mode
+        self.rankHints = rankHints
+        self.highlightEdges = highlightEdges
+        self.highlightNodes = highlightNodes
+        self.cutNodes = cutNodes
+        self.nodeColors = nodeColors
+        self.edgeLabels = edgeLabels
+        self.matchedEdges = matchedEdges
+        self.tourSequence = tourSequence
+        self.componentGroups = componentGroups
+        self.hullLabels = hullLabels
+        self.partitions = partitions
+        self.theme = theme
+        self.direction = direction
+        self.routing = routing
+        self.algorithm = algorithm
+        self.horizontalGap = horizontalGap
+        self.verticalGap = verticalGap
+        self.relaxationPasses = relaxationPasses
+        self.crossingSweeps = crossingSweeps
+        self.canvasPadding = canvasPadding
+        self.titleHeight = titleHeight
+    }
+}
 
-        while !queue.isEmpty {
-            let u = queue.removeFirst()
-            for v in graph.adjacent(of: u) {
-                if rankHints[v] == nil {
-                    layerMap[v] = Swift.max(layerMap[v], layerMap[u] + 1)
+public enum GraphLayoutError: Error, Equatable, LocalizedError, Sendable {
+    case invalidVertex(Int)
+    case invalidRank(vertex: Int, rank: Int)
+    case duplicatePartitionVertex(Int)
+    case incompletePartitions(missing: [Int])
+    case missingPosition(Int)
+    case missingRoute(UInt64)
+    case rust(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidVertex(let vertex): return "Vertex index \(vertex) is outside the graph."
+        case .invalidRank(let vertex, let rank): return "Rank \(rank) for vertex \(vertex) is invalid."
+        case .duplicatePartitionVertex(let vertex): return "Vertex \(vertex) occurs in both bipartite partitions."
+        case .incompletePartitions(let missing): return "Bipartite partitions do not contain vertices: \(missing)."
+        case .missingPosition(let vertex): return "The layout engine returned no position for vertex \(vertex)."
+        case .missingRoute(let edgeID): return "The layout engine returned no route for edge \(edgeID)."
+        case .rust(let message): return "Rust layout failed: \(message)"
+        }
+    }
+}
+
+/// Converts NetworkGraph data to the UniFFI contract and maps the complete Rust result
+/// (ranks, routed segments, labels, arrowheads, and self-loops) into renderable geometry.
+public struct GraphLayoutEngine: Sendable {
+    public init() {}
+
+    public func layout<V, W>(_ graph: AdjacentGraph<V, W>, options: GraphLayoutOptions = .init()) throws -> VisualGraph {
+        let vertexCount = graph.vertexCount
+        try validate(options: options, vertexCount: vertexCount)
+        guard vertexCount > 0 else {
+            return VisualGraph(title: options.title, isDirected: graph.kind == .directed)
+        }
+
+        let nodeDiameter = Float(options.theme.nodeRadius * 2)
+        let nodes = try (0..<vertexCount).map { vertex -> FfiNode in
+            let hint = options.rankHints[vertex]
+            let rank = try hint.map { value -> UInt32 in
+                guard value.rank >= 0, let converted = UInt32(exactly: value.rank) else {
+                    throw GraphLayoutError.invalidRank(vertex: vertex, rank: value.rank)
                 }
-                if !visited.contains(v) {
-                    visited.insert(v)
-                    queue.append(v)
-                }
+                return converted
             }
-        }
-        for u in 0..<n where !visited.contains(u) { layerMap[u] = 0 }
-
-        // ── Layer → Pixel coordinates ─────────────────────────────────────────
-        var layerBuckets: [[Int]] = []
-        let maxLayer = layerMap.max() ?? 0
-        for l in 0...maxLayer {
-            let inLayer = (0..<n).filter { layerMap[$0] == l }
-            if !inLayer.isEmpty { layerBuckets.append(inLayer) }
+            return FfiNode(id: UInt64(vertex), width: nodeDiameter, height: nodeDiameter,
+                           rankHint: rank, rankConstraint: hint?.constraint.ffi ?? .preferred)
         }
 
-        let hGap = 130.0
-        let vGap = 110.0
-        let padding = 90.0
+        let records = canonicalEdges(graph, options: options)
+        let ffiEdges = records.map { record in
+            let size = record.label.map { labelDimensions($0, theme: options.theme) }
+            return FfiEdge(id: record.id, from: UInt64(record.edge.u), to: UInt64(record.edge.v),
+                           labelWidth: size?.width, labelHeight: size?.height)
+        }
+        let config = FfiConfig(hGap: Float(options.horizontalGap), vGap: Float(options.verticalGap),
+                               relaxPasses: options.relaxationPasses, sweeps: options.crossingSweeps,
+                               algorithm: options.algorithm.ffi, routing: options.routing.ffi,
+                               direction: options.direction.ffi)
 
-        let maxNodesInLayer = layerBuckets.map { $0.count }.max() ?? 1
-        let width  = Swift.max(800.0, Double(maxNodesInLayer) * hGap + 2 * padding)
-        let height = Swift.max(600.0, Double(layerBuckets.count) * vGap + 2 * padding)
-
-        var visualNodes: [VisualNode] = []
-        var nodePositions = [Int: VisualPoint]()
-
-        for (layerIdx, layer) in layerBuckets.enumerated() {
-            let y = padding + Double(layerIdx) * vGap
-            let layerWidth = Double(layer.count - 1) * hGap
-            let startX = (width - layerWidth) / 2.0
-
-            for (nodeIdx, u) in layer.enumerated() {
-                let x = startX + Double(nodeIdx) * hGap
-                nodePositions[u] = VisualPoint(x: x, y: y)
-                visualNodes.append(VisualNode(
-                    id: u, label: "\(u)", x: x, y: y,
-                    color: nodeColors[u],
-                    isHighlighted: highlightNodes.contains(u),
-                    isCutNode: cutNodes.contains(u),
-                    rank: layerIdx
-                ))
+        let result: FfiLayoutResult
+        do {
+            switch options.mode {
+            case .hierarchical:
+                result = try SwiftLayout.layout(nodes: nodes, edges: ffiEdges, config: config)
+            case .bipartite(let partitionU, let partitionV, let maxIterations):
+                result = try SwiftLayout.layoutBipartite(
+                    nodes: nodes, edges: ffiEdges,
+                    partitionU: partitionU.map(UInt64.init), partitionV: partitionV.map(UInt64.init),
+                    directed: graph.kind == .directed, maxIterations: maxIterations, config: config
+                )
             }
+        } catch {
+            throw GraphLayoutError.rust(String(describing: error))
         }
 
-        // ── Edges ─────────────────────────────────────────────────────────────
-        var visualEdges: [VisualEdge] = []
-        var seenEdges = Set<Edge>()
+        let dx = options.canvasPadding - Double(result.bounds.minX)
+        let dy = options.canvasPadding + options.titleHeight - Double(result.bounds.minY)
+        let translate: (FfiPoint) -> VisualPoint = { point in
+            VisualPoint(x: Double(point.x) + dx, y: Double(point.y) + dy)
+        }
+        let positions = Dictionary(uniqueKeysWithValues: result.positions.map { ($0.id, $0) })
+        let routes = Dictionary(uniqueKeysWithValues: result.routes.map { ($0.id, $0) })
 
-        // Build tour-edge lookup for sequence badges
-        var tourEdgeSet = Set<Edge>()
-        var tourStepMap = [Edge: Int]()
-        if let tour = tourSequence {
-            for i in 0..<(tour.count - 1) {
-                let e = Edge(u: tour[i], v: tour[i + 1])
-                tourEdgeSet.insert(e); tourEdgeSet.insert(e.reversed())
-                tourStepMap[e] = i + 1
-            }
+        let visualNodes = try (0..<vertexCount).map { vertex -> VisualNode in
+            guard let position = positions[UInt64(vertex)] else { throw GraphLayoutError.missingPosition(vertex) }
+            let point = translate(FfiPoint(x: position.x, y: position.y))
+            return VisualNode(id: vertex, label: "\(vertex)", x: point.x, y: point.y,
+                              color: options.nodeColors[vertex],
+                              isHighlighted: options.highlightNodes.contains(vertex),
+                              isCutNode: options.cutNodes.contains(vertex), rank: Int(position.rank))
         }
 
-        for edge in graph.edges {
-            if graph.kind == .undirected && edge.u > edge.v { continue }
-            let norm = Edge(u: edge.u, v: edge.v)
-            if seenEdges.contains(norm) { continue }
-            seenEdges.insert(norm)
-
-            let isHl = highlightEdges.contains(norm) || highlightEdges.contains(norm.reversed())
-                    || tourEdgeSet.contains(norm)
-            let label = edgeLabels[norm] ?? edgeLabels[norm.reversed()]
-            let step = tourStepMap[norm] ?? tourStepMap[norm.reversed()]
-
-            let p1 = nodePositions[edge.u] ?? VisualPoint(x: 0, y: 0)
-            let p2 = nodePositions[edge.v] ?? VisualPoint(x: 0, y: 0)
-
-            visualEdges.append(VisualEdge(
-                from: edge.u, to: edge.v,
-                label: label, isHighlighted: isHl,
-                sequenceNumber: step,
-                waypoints: [p1, p2]
-            ))
+        let visualEdges = try records.map { record -> VisualEdge in
+            guard let route = routes[record.id] else { throw GraphLayoutError.missingRoute(record.id) }
+            return VisualEdge(
+                id: record.id, from: record.edge.u, to: record.edge.v, label: record.label,
+                isHighlighted: record.isHighlighted, sequenceNumber: record.sequenceNumber,
+                waypoints: route.waypoints.map(translate),
+                segments: route.segments.map { $0.visual(translate: translate) },
+                labelPosition: route.labelPosition.map(translate),
+                arrowhead: route.arrowhead.map { arrow in
+                    VisualArrowhead(tip: translate(arrow.tip), angle: Double(arrow.angle),
+                                    left: translate(arrow.left), right: translate(arrow.right))
+                },
+                isReversed: route.reversed, isSelfLoop: route.isSelfLoop,
+                isMatched: record.isMatched
+            )
         }
 
-        // ── Tour Badges ───────────────────────────────────────────────────────
-        var badges: [VisualBadge] = []
-        for ve in visualEdges {
-            guard let step = ve.sequenceNumber, ve.waypoints.count >= 2 else { continue }
-            let p1 = ve.waypoints[0]
-            let p2 = ve.waypoints[ve.waypoints.count - 1]
-            let mid = VisualPoint(x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2)
-            badges.append(VisualBadge(position: mid, number: step))
-        }
-
-        // ── Component Hulls ───────────────────────────────────────────────────
-        var hulls: [VisualHull] = []
-        if let groups = componentGroups {
-            let hullColors = theme.palette
-            for (i, group) in groups.enumerated() {
-                let color = hullColors[i % hullColors.count]
-                hulls.append(VisualHull(
-                    members: group,
-                    fillColor: color,
-                    strokeColor: color,
-                    label: "C\(i + 1)"
-                ))
-            }
-        }
-
-        return VisualGraph(title: title, nodes: visualNodes, edges: visualEdges,
-                           width: width, height: height,
-                           hulls: hulls, badges: badges)
+        let hulls = makeHulls(options: options)
+        let badges = makeBadges(tour: options.tourSequence, edges: visualEdges, directed: graph.kind == .directed)
+        return VisualGraph(
+            title: options.title, nodes: visualNodes, edges: visualEdges,
+            width: max(1, Double(result.bounds.width) + options.canvasPadding * 2),
+            height: max(1, Double(result.bounds.height) + options.canvasPadding * 2 + options.titleHeight),
+            hulls: hulls, badges: badges, partitions: options.partitions,
+            isDirected: graph.kind == .directed
+        )
     }
 
-    // MARK: - 2. Bipartite Layout with Rank Constraints
+    private struct EdgeRecord {
+        let id: UInt64
+        let edge: Edge
+        let label: String?
+        let isHighlighted: Bool
+        let isMatched: Bool
+        let sequenceNumber: Int?
+    }
 
-    /// Generates a two-column bipartite layout with explicit rank-pinning.
-    ///
-    /// Left column = `partitionU` (rank 0), right column = `partitionV` (rank 1).
-    /// Matched edges are drawn with `isMatched = true` for a distinct visual style.
-    ///
-    /// - Parameters:
-    ///   - graph: The bipartite graph.
-    ///   - partitionU: Vertex indices in the left partition (U side).
-    ///   - partitionV: Vertex indices in the right partition (V side).
-    ///   - labelU: Human-readable name for the U partition (default "U").
-    ///   - labelV: Human-readable name for the V partition (default "V").
-    ///   - matchedEdges: Edges in the current matching — highlighted distinctively.
-    ///   - edgeLabels: Optional per-edge annotation text.
-    ///   - nodeColors: Per-vertex fill overrides.
-    ///   - theme: Visual theme.
-    public static func layoutBipartite<V, W>(
-        graph: AdjacentGraph<V, W>,
-        partitionU: [Int],
-        partitionV: [Int],
-        labelU: String = "U",
-        labelV: String = "V",
-        matchedEdges: Set<Edge> = [],
-        edgeLabels: [Edge: String] = [:],
-        nodeColors: [Int: String] = [:],
-        theme: GraphVisualTheme = .modernDark
-    ) -> VisualGraph {
-        let sideGap = 260.0
-        let vGap    = 80.0
-        let padding = 80.0
-
-        let rowCountU = partitionU.count
-        let rowCountV = partitionV.count
-        let maxRows = Swift.max(rowCountU, rowCountV)
-
-        let width  = Swift.max(700.0, sideGap + 2 * padding)
-        let height = Swift.max(500.0, Double(maxRows) * vGap + 2 * padding)
-
-        let xU = padding + 60
-        let xV = width - padding - 60
-
-        var nodePositions = [Int: VisualPoint]()
-        var visualNodes:   [VisualNode] = []
-
-        // ── Left (U) column ───────────────────────────────────────────────────
-        for (i, u) in partitionU.enumerated() {
-            let totalH = Double(rowCountU - 1) * vGap
-            let startY = (height - totalH) / 2.0
-            let y = startY + Double(i) * vGap
-            nodePositions[u] = VisualPoint(x: xU, y: y)
-            visualNodes.append(VisualNode(
-                id: u, label: "\(u)", x: xU, y: y,
-                color: nodeColors[u] ?? theme.palette[0],
-                rank: 0
-            ))
+    private func canonicalEdges<V, W>(_ graph: AdjacentGraph<V, W>, options: GraphLayoutOptions) -> [EdgeRecord] {
+        var tourSteps: [Edge: Int] = [:]
+        if let tour = options.tourSequence {
+            for (step, pair) in zip(tour, tour.dropFirst()).enumerated() {
+                tourSteps[Edge(u: pair.0, v: pair.1)] = step + 1
+            }
         }
-
-        // ── Right (V) column ──────────────────────────────────────────────────
-        for (i, v) in partitionV.enumerated() {
-            let totalH = Double(rowCountV - 1) * vGap
-            let startY = (height - totalH) / 2.0
-            let y = startY + Double(i) * vGap
-            nodePositions[v] = VisualPoint(x: xV, y: y)
-            visualNodes.append(VisualNode(
-                id: v, label: "\(v)", x: xV, y: y,
-                color: nodeColors[v] ?? theme.palette[3],
-                rank: 1
-            ))
-        }
-
-        // ── Edges ─────────────────────────────────────────────────────────────
-        var visualEdges: [VisualEdge] = []
-        var seenEdges = Set<Edge>()
-
+        var seen = Set<Edge>()
+        var output: [EdgeRecord] = []
         for edge in graph.edges {
-            if graph.kind == .undirected && edge.u > edge.v { continue }
-            let norm = Edge(u: edge.u, v: edge.v)
-            if seenEdges.contains(norm) { continue }
-            seenEdges.insert(norm)
-
-            let isMatch = matchedEdges.contains(norm) || matchedEdges.contains(norm.reversed())
-            let label = edgeLabels[norm] ?? edgeLabels[norm.reversed()]
-            let p1 = nodePositions[edge.u] ?? VisualPoint(x: xU, y: 0)
-            let p2 = nodePositions[edge.v] ?? VisualPoint(x: xV, y: 0)
-
-            visualEdges.append(VisualEdge(
-                from: edge.u, to: edge.v,
-                label: label, isHighlighted: isMatch,
-                waypoints: [p1, p2],
-                isMatched: isMatch
+            let key: Edge
+            if graph.kind == .undirected {
+                key = edge.u <= edge.v ? edge : edge.reversed()
+                guard seen.insert(key).inserted else { continue }
+            } else {
+                key = edge
+            }
+            let reverse = key.reversed()
+            let highlighted = options.highlightEdges.contains(key) ||
+                (graph.kind == .undirected && options.highlightEdges.contains(reverse)) ||
+                tourSteps[key] != nil || (graph.kind == .undirected && tourSteps[reverse] != nil)
+            let matched = options.matchedEdges.contains(key) ||
+                (graph.kind == .undirected && options.matchedEdges.contains(reverse))
+            output.append(EdgeRecord(
+                id: UInt64(output.count), edge: key,
+                label: options.edgeLabels[key] ?? (graph.kind == .undirected ? options.edgeLabels[reverse] : nil),
+                isHighlighted: highlighted || matched, isMatched: matched,
+                sequenceNumber: tourSteps[key] ?? (graph.kind == .undirected ? tourSteps[reverse] : nil)
             ))
         }
+        return output
+    }
 
-        // ── Partition metadata for the renderer ───────────────────────────────
+    private func validate(options: GraphLayoutOptions, vertexCount: Int) throws {
+        let referenced = Set(options.rankHints.keys)
+            .union(options.highlightNodes).union(options.cutNodes)
+            .union(options.componentGroups?.flatMap { $0 } ?? [])
+            .union(options.tourSequence ?? [])
+        if let invalid = referenced.first(where: { $0 < 0 || $0 >= vertexCount }) {
+            throw GraphLayoutError.invalidVertex(invalid)
+        }
+        for (vertex, hint) in options.rankHints where hint.rank < 0 || UInt32(exactly: hint.rank) == nil {
+            throw GraphLayoutError.invalidRank(vertex: vertex, rank: hint.rank)
+        }
+        if case .bipartite(let u, let v, _) = options.mode {
+            if let invalid = (u + v).first(where: { $0 < 0 || $0 >= vertexCount }) {
+                throw GraphLayoutError.invalidVertex(invalid)
+            }
+            let uSet = Set(u), vSet = Set(v)
+            if let duplicate = uSet.intersection(vSet).first {
+                throw GraphLayoutError.duplicatePartitionVertex(duplicate)
+            }
+            let missing = Set(0..<vertexCount).subtracting(uSet.union(vSet)).sorted()
+            if !missing.isEmpty { throw GraphLayoutError.incompletePartitions(missing: missing) }
+        }
+    }
+
+    private func labelDimensions(_ label: String, theme: GraphVisualTheme) -> (width: Float, height: Float) {
+        (Float(max(16, Double(label.count) * theme.edgeFontSize * 0.62 + 10)),
+         Float(theme.edgeFontSize + 8))
+    }
+
+    private func makeHulls(options: GraphLayoutOptions) -> [VisualHull] {
+        guard let groups = options.componentGroups else { return [] }
+        return groups.enumerated().map { index, members in
+            let color = options.theme.palette[index % options.theme.palette.count]
+            let label = options.hullLabels?[safe: index] ?? "C\(index + 1)"
+            return VisualHull(members: members, fillColor: color, strokeColor: color, label: label)
+        }
+    }
+
+    private func makeBadges(tour: [Int]?, edges: [VisualEdge], directed: Bool) -> [VisualBadge] {
+        guard let tour else { return [] }
+        return zip(tour, tour.dropFirst()).enumerated().compactMap { step, pair in
+            guard let edge = edges.first(where: {
+                ($0.from == pair.0 && $0.to == pair.1) || (!directed && $0.from == pair.1 && $0.to == pair.0)
+            }), let position = edge.labelPosition ?? edge.pathMidpoint else { return nil }
+            return VisualBadge(position: position, number: step + 1)
+        }
+    }
+}
+
+// MARK: - Compatibility entry points
+
+public enum LayoutBridge {
+    public static func layoutSugiyama<V, W>(
+        graph: AdjacentGraph<V, W>, title: String = "Graph Layout",
+        highlightEdges: Set<Edge> = [], highlightNodes: Set<Int> = [], cutNodes: Set<Int> = [],
+        nodeColors: [Int: String] = [:], edgeLabels: [Edge: String] = [:],
+        tourSequence: [Int]? = nil, componentGroups: [[Int]]? = nil,
+        rankHints: [Int: Int] = [:], theme: GraphVisualTheme = .modernDark
+    ) throws -> VisualGraph {
+        let hints = rankHints.mapValues { GraphRankHint(rank: $0, constraint: .preferred) }
+        return try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
+            title: title, rankHints: hints, highlightEdges: highlightEdges,
+            highlightNodes: highlightNodes, cutNodes: cutNodes, nodeColors: nodeColors,
+            edgeLabels: edgeLabels, tourSequence: tourSequence,
+            componentGroups: componentGroups, theme: theme
+        ))
+    }
+
+    public static func layoutBipartite<V, W>(
+        graph: AdjacentGraph<V, W>, partitionU: [Int], partitionV: [Int],
+        labelU: String = "U", labelV: String = "V", matchedEdges: Set<Edge> = [],
+        edgeLabels: [Edge: String] = [:], nodeColors: [Int: String] = [:],
+        theme: GraphVisualTheme = .modernDark
+    ) throws -> VisualGraph {
         let partitions = [
             VisualPartition(label: labelU, members: partitionU, color: theme.palette[0]),
             VisualPartition(label: labelV, members: partitionV, color: theme.palette[3])
         ]
-
-        return VisualGraph(
-            title: "Bipartite Layout", nodes: visualNodes, edges: visualEdges,
-            width: width, height: height,
-            partitions: partitions
-        )
+        return try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
+            title: "Bipartite Layout", mode: .bipartite(partitionU: partitionU, partitionV: partitionV),
+            nodeColors: nodeColors, edgeLabels: edgeLabels, matchedEdges: matchedEdges,
+            partitions: partitions, theme: theme, direction: .leftToRight
+        ))
     }
 
-    // MARK: - 3. Layout with Explicit Rank Hints
-
-    /// Sugiyama layout where specific vertices are pinned to an explicit layer.
-    ///
-    /// Use this for visualizing **assignment problems** (workers on layer 0, jobs on layer 1),
-    /// **min-cost flow** (source on layer 0, sink on last layer), or any scenario where
-    /// the algorithm output constrains vertex placement.
-    ///
-    /// - Parameter rankHints: `[vertexIndex: layerIndex]` — zero-based layer index.
     public static func layoutWithRankHints<V, W>(
-        graph: AdjacentGraph<V, W>,
-        rankHints: [Int: Int],
-        title: String = "Rank-Constrained Layout",
-        highlightEdges: Set<Edge> = [],
-        nodeColors: [Int: String] = [:],
-        edgeLabels: [Edge: String] = [:],
+        graph: AdjacentGraph<V, W>, rankHints: [Int: Int],
+        title: String = "Rank-Constrained Layout", highlightEdges: Set<Edge> = [],
+        nodeColors: [Int: String] = [:], edgeLabels: [Edge: String] = [:],
         theme: GraphVisualTheme = .modernDark
-    ) -> VisualGraph {
-        layoutSugiyama(
-            graph: graph,
-            title: title,
-            highlightEdges: highlightEdges,
-            nodeColors: nodeColors,
-            edgeLabels: edgeLabels,
-            rankHints: rankHints,
-            theme: theme
-        )
+    ) throws -> VisualGraph {
+        let pinned = rankHints.mapValues { GraphRankHint(rank: $0, constraint: .pinned) }
+        return try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
+            title: title, rankHints: pinned, highlightEdges: highlightEdges,
+            nodeColors: nodeColors, edgeLabels: edgeLabels, theme: theme
+        ))
     }
 
-    // MARK: - 4. Component-Grouped Layout
+    public static func layoutComponents<V, W>(
+        graph: AdjacentGraph<V, W>, componentGroups: [[Int]], hullLabels: [String]? = nil,
+        title: String = "Components", highlightEdges: Set<Edge> = [],
+        nodeColors: [Int: String] = [:], edgeLabels: [Edge: String] = [:],
+        theme: GraphVisualTheme = .modernDark
+    ) throws -> VisualGraph {
+        try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
+            title: title, highlightEdges: highlightEdges, nodeColors: nodeColors,
+            edgeLabels: edgeLabels, componentGroups: componentGroups,
+            hullLabels: hullLabels, theme: theme
+        ))
+    }
 
-    /// Sugiyama layout where each connected component is enclosed in a colored hull.
-    ///
-    /// Ideal for: Connected Components (2.5), SCCs (2.7), Cliques (2.11),
-    /// Chromatic Color Classes (6.1), Matching Pairs (7.1).
-    ///
-    /// - Parameter componentGroups: Array of vertex-index groups; each becomes one hull.
-    /// - Parameter hullLabels: Optional labels for each group.
+    @available(*, deprecated, renamed: "layoutComponents(graph:componentGroups:hullLabels:title:highlightEdges:nodeColors:edgeLabels:theme:)")
     public static func layoutWithComponentHulls<V, W>(
-        graph: AdjacentGraph<V, W>,
-        componentGroups: [[Int]],
-        hullLabels: [String]? = nil,
-        title: String = "Components",
-        highlightEdges: Set<Edge> = [],
-        nodeColors: [Int: String] = [:],
-        edgeLabels: [Edge: String] = [:],
+        graph: AdjacentGraph<V, W>, componentGroups: [[Int]], hullLabels: [String]? = nil,
+        title: String = "Components", highlightEdges: Set<Edge> = [],
+        nodeColors: [Int: String] = [:], edgeLabels: [Edge: String] = [:],
         theme: GraphVisualTheme = .modernDark
-    ) -> VisualGraph {
-        var vGraph = layoutSugiyama(
-            graph: graph,
-            title: title,
-            highlightEdges: highlightEdges,
-            nodeColors: nodeColors,
-            edgeLabels: edgeLabels,
-            componentGroups: componentGroups,
-            theme: theme
-        )
-
-        // Override hull labels if provided
-        if let labels = hullLabels {
-            for i in 0..<Swift.min(labels.count, vGraph.hulls.count) {
-                vGraph.hulls[i].label = labels[i]
-            }
-        }
-        return vGraph
+    ) throws -> VisualGraph {
+        try layoutComponents(graph: graph, componentGroups: componentGroups, hullLabels: hullLabels,
+                             title: title, highlightEdges: highlightEdges,
+                             nodeColors: nodeColors, edgeLabels: edgeLabels, theme: theme)
     }
 
-    // MARK: - 5. Circular Layout
-
-    /// Generates a circular layout ideal for Hamilton cycles and TSP tours.
-    ///
-    /// - Parameters:
-    ///   - tour: Ordered vertex sequence; edges between consecutive vertices are highlighted
-    ///           and receive sequence badges showing step numbers.
-    ///   - nodeColors: Per-vertex fill overrides.
+    /// Circular layout remains in Swift because it is intentionally independent of hierarchical routing.
     public static func layoutCircular<V, W>(
-        graph: AdjacentGraph<V, W>,
-        title: String = "Circular Layout",
-        tour: [Int]? = nil,
-        highlightEdges: Set<Edge> = [],
-        nodeColors: [Int: String] = [:],
+        graph: AdjacentGraph<V, W>, title: String = "Circular Layout", tour: [Int]? = nil,
+        highlightEdges: Set<Edge> = [], nodeColors: [Int: String] = [:],
         theme: GraphVisualTheme = .modernDark
     ) -> VisualGraph {
         let n = graph.vertexCount
-        let width = 800.0
-        let height = 800.0
-        let centerX = width / 2.0
-        let centerY = height / 2.0
-        let radius = 280.0
-
-        var visualNodes: [VisualNode] = []
-        var nodePositions = [Int: VisualPoint]()
-
-        for i in 0..<n {
-            let angle = (Double(i) / Double(n)) * 2.0 * .pi - .pi / 2.0
-            let x = centerX + radius * cos(angle)
-            let y = centerY + radius * sin(angle)
-            nodePositions[i] = VisualPoint(x: x, y: y)
-            visualNodes.append(VisualNode(
-                id: i, label: "\(i)", x: x, y: y,
-                color: nodeColors[i]
-            ))
+        guard n > 0 else { return VisualGraph(title: title, isDirected: graph.kind == .directed) }
+        let width = 800.0, height = 800.0, radius = 280.0
+        var positions: [Int: VisualPoint] = [:]
+        let nodes = (0..<n).map { vertex -> VisualNode in
+            let angle = Double(vertex) / Double(n) * 2 * Double.pi - Double.pi / 2
+            let point = VisualPoint(x: width / 2 + radius * cos(angle), y: height / 2 + radius * sin(angle))
+            positions[vertex] = point
+            return VisualNode(id: vertex, label: "\(vertex)", x: point.x, y: point.y, color: nodeColors[vertex])
         }
-
-        var visualEdges: [VisualEdge] = []
-        var tourEdgeSet = Set<Edge>()
-        var tourStepMap = [Edge: Int]()
-
-        if let t = tour {
-            for i in 0..<(t.count - 1) {
-                let e = Edge(u: t[i], v: t[i + 1])
-                tourEdgeSet.insert(e); tourEdgeSet.insert(e.reversed())
-                tourStepMap[e] = i + 1
-            }
-        }
-
+        let pairs = tour.map { Array(zip($0, $0.dropFirst())) } ?? []
+        var seen = Set<Edge>()
+        var edges: [VisualEdge] = []
         for edge in graph.edges {
-            if graph.kind == .undirected && edge.u > edge.v { continue }
-            let norm = Edge(u: edge.u, v: edge.v)
-            let isHl = highlightEdges.contains(norm) || tourEdgeSet.contains(norm)
-            let step = tourStepMap[norm] ?? tourStepMap[norm.reversed()]
-            let p1 = nodePositions[edge.u]!
-            let p2 = nodePositions[edge.v]!
-            visualEdges.append(VisualEdge(
-                from: edge.u, to: edge.v,
-                isHighlighted: isHl,
-                sequenceNumber: step,
-                waypoints: [p1, p2]
-            ))
+            let key = graph.kind == .undirected && edge.u > edge.v ? edge.reversed() : edge
+            if graph.kind == .undirected && !seen.insert(key).inserted { continue }
+            guard let start = positions[key.u], let end = positions[key.v] else { continue }
+            let step = pairs.firstIndex { pair in
+                (pair.0 == key.u && pair.1 == key.v) ||
+                    (graph.kind == .undirected && pair.0 == key.v && pair.1 == key.u)
+            }.map { $0 + 1 }
+            let highlighted = highlightEdges.contains(key) ||
+                (graph.kind == .undirected && highlightEdges.contains(key.reversed())) || step != nil
+            edges.append(VisualEdge(id: UInt64(edges.count), from: key.u, to: key.v,
+                                    isHighlighted: highlighted, sequenceNumber: step,
+                                    waypoints: [start, end], segments: [.line(start: start, end: end)],
+                                    isSelfLoop: key.u == key.v))
         }
-
-        // Tour sequence badges at edge midpoints
-        var badges: [VisualBadge] = []
-        for ve in visualEdges {
-            guard let step = ve.sequenceNumber, ve.waypoints.count >= 2 else { continue }
-            let p1 = ve.waypoints[0]; let p2 = ve.waypoints[1]
-            badges.append(VisualBadge(
-                position: VisualPoint(x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2),
-                number: step
-            ))
+        let badges = pairs.enumerated().compactMap { step, pair -> VisualBadge? in
+            guard let start = positions[pair.0], let end = positions[pair.1] else { return nil }
+            return VisualBadge(position: VisualPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2), number: step + 1)
         }
-
-        return VisualGraph(
-            title: title, nodes: visualNodes, edges: visualEdges,
-            width: width, height: height, badges: badges
-        )
+        return VisualGraph(title: title, nodes: nodes, edges: edges, width: width, height: height,
+                           badges: badges, isDirected: graph.kind == .directed)
     }
+}
+
+private extension GraphRankConstraint {
+    var ffi: FfiRankConstraint { self == .pinned ? .pinned : .preferred }
+}
+
+private extension GraphLayoutDirection {
+    var ffi: FfiDirection { self == .leftToRight ? .leftToRight : .topToBottom }
+}
+
+private extension GraphLayoutRouting {
+    var ffi: FfiRoutingStyle {
+        switch self { case .straight: return .straight; case .orthogonal: return .orthogonal; case .bezier: return .bezier }
+    }
+}
+
+private extension GraphLayoutAlgorithm {
+    var ffi: FfiAlgorithm { self == .medianRelax ? .medianRelax : .brandesKopf }
+}
+
+private extension FfiPathSegment {
+    func visual(translate: (FfiPoint) -> VisualPoint) -> VisualPathSegment {
+        switch self {
+        case .line(let start, let end): return .line(start: translate(start), end: translate(end))
+        case .cubicCurve(let start, let control1, let control2, let end):
+            return .cubicCurve(start: translate(start), control1: translate(control1),
+                               control2: translate(control2), end: translate(end))
+        }
+    }
+}
+
+private extension VisualEdge {
+    var pathMidpoint: VisualPoint? {
+        guard let first = waypoints.first, let last = waypoints.last else { return nil }
+        return VisualPoint(x: (first.x + last.x) / 2, y: (first.y + last.y) / 2)
+    }
+}
+
+private extension Collection {
+    subscript(safe index: Index) -> Element? { indices.contains(index) ? self[index] : nil }
 }

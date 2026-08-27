@@ -16,7 +16,9 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser", from: "0.4.0"),
         .package(url: "https://github.com/johnsundell/files.git", from: "2.2.1"),
         .package(url: "https://github.com/SwiftDocOrg/GraphViz", from: "0.4.0"),
-        .package(url: "https://github.com/hakkabon/Swift-Layout.git", exact: "0.0.2"),
+        // 0.0.3 is the first binding contract with rank constraints, stable edge ids,
+        // assigned ranks, routed segments, and the dedicated bipartite entry point.
+        .package(url: "https://github.com/hakkabon/Swift-Layout.git", exact: "0.0.3"),
     ],
     targets: [
         .target(name: "NetworkGraph",
