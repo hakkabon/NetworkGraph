@@ -452,8 +452,23 @@ public struct GraphLayoutEngine: Sendable {
         return zip(tour, tour.dropFirst()).enumerated().compactMap { step, pair in
             guard let edge = edges.first(where: {
                 ($0.from == pair.0 && $0.to == pair.1) || (!directed && $0.from == pair.1 && $0.to == pair.0)
-            }), let position = edge.labelPosition ?? edge.pathMidpoint else { return nil }
-            return VisualBadge(position: position, number: step + 1)
+            }) else { return nil }
+
+            let isForward = edge.from == pair.0 && edge.to == pair.1
+            let waypoints = edge.waypoints
+            guard waypoints.count >= 2 else {
+                if let mid = edge.labelPosition ?? edge.pathMidpoint {
+                    return VisualBadge(position: mid, number: step + 1)
+                }
+                return nil
+            }
+
+            let startPoint = isForward ? waypoints[0] : waypoints[waypoints.count - 1]
+            let endPoint = isForward ? waypoints[waypoints.count - 1] : waypoints[0]
+
+            // Place badge at 32% from step start towards step end with a slight perpendicular offset
+            let badgePos = LayoutBridge.pointAlongEdge(from: startPoint, to: endPoint, fraction: 0.32, normalOffset: 8.0)
+            return VisualBadge(position: badgePos, number: step + 1)
         }
     }
 }
@@ -461,6 +476,22 @@ public struct GraphLayoutEngine: Sendable {
 // MARK: - Compatibility entry points
 
 public enum LayoutBridge {
+
+    /// Computes a point along an edge line segment at a given fraction with an optional perpendicular normal offset.
+    public static func pointAlongEdge(from start: VisualPoint, to end: VisualPoint, fraction: Double, normalOffset: Double = 0.0) -> VisualPoint {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = sqrt(dx * dx + dy * dy)
+        guard length > 0 else { return start }
+        let ux = dx / length
+        let uy = dy / length
+        let nx = -uy
+        let ny = ux
+        return VisualPoint(
+            x: start.x + dx * fraction + nx * normalOffset,
+            y: start.y + dy * fraction + ny * normalOffset
+        )
+    }
 
     /// Automatically extracts formatted edge labels/costs from graph edge properties.
     public static func defaultEdgeLabels<V, W>(for graph: AdjacentGraph<V, W>) -> [Edge: String] {
@@ -563,7 +594,7 @@ public enum LayoutBridge {
                              nodeColors: nodeColors, edgeLabels: edgeLabels, theme: theme)
     }
 
-    /// Circular layout with tour sequence step badges and full edge cost annotations.
+    /// Circular layout with tour sequence step badges and full edge cost annotations positioned without overlap.
     public static func layoutCircular<V, W>(
         graph: AdjacentGraph<V, W>, title: String = "Circular Layout",
         tour: [Int]? = nil, tourSequence: [Int]? = nil,
@@ -603,15 +634,26 @@ public enum LayoutBridge {
             let highlighted = highlightEdges.contains(key) ||
                 (graph.kind == .undirected && highlightEdges.contains(key.reversed())) || step != nil
             let label = labels[key] ?? (graph.kind == .undirected ? labels[key.reversed()] : nil)
-            let mid = VisualPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+
+            // When an edge is part of the tour, position the cost label at 65% with normal offset
+            // to ensure it never collides with the tour sequence badge at 32%
+            let labelPos: VisualPoint
+            if step != nil {
+                labelPos = pointAlongEdge(from: start, to: end, fraction: 0.65, normalOffset: -9.0)
+            } else {
+                labelPos = VisualPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+            }
+
             edges.append(VisualEdge(id: UInt64(edges.count), from: key.u, to: key.v,
                                     label: label, isHighlighted: highlighted, sequenceNumber: step,
                                     waypoints: [start, end], segments: [.line(start: start, end: end)],
-                                    labelPosition: mid, isSelfLoop: key.u == key.v))
+                                    labelPosition: labelPos, isSelfLoop: key.u == key.v))
         }
+
         let badges = pairs.enumerated().compactMap { step, pair -> VisualBadge? in
             guard let start = positions[pair.0], let end = positions[pair.1] else { return nil }
-            return VisualBadge(position: VisualPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2), number: step + 1)
+            let badgePos = pointAlongEdge(from: start, to: end, fraction: 0.32, normalOffset: 9.0)
+            return VisualBadge(position: badgePos, number: step + 1)
         }
         return VisualGraph(title: title, nodes: nodes, edges: edges, width: width, height: height,
                            badges: badges, isDirected: graph.kind == .directed)

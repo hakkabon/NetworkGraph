@@ -130,6 +130,16 @@ final class VisualizationTests: XCTestCase {
         XCTAssertEqual(vGraph.edges.count, 4)
         XCTAssertTrue(vGraph.edges.allSatisfy { $0.label != nil })
 
+        // Verify that on each edge, the badge and the edge label are separated by at least 20px
+        for (i, edge) in vGraph.edges.enumerated() {
+            guard let labelPos = edge.labelPosition, i < vGraph.badges.count else { continue }
+            let badgePos = vGraph.badges[i].position
+            let dx = labelPos.x - badgePos.x
+            let dy = labelPos.y - badgePos.y
+            let dist = sqrt(dx * dx + dy * dy)
+            XCTAssertGreaterThan(dist, 20.0, "Tour badge and edge cost label should not collide")
+        }
+
         let svg = SVGGraphRenderer.renderToSVG(vGraph)
         XCTAssertTrue(svg.contains("Tour With Costs"))
         XCTAssertTrue(svg.contains("class=\"tour-badge\""))
