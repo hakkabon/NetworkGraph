@@ -111,4 +111,63 @@ final class VisualizationTests: XCTestCase {
         XCTAssertTrue(visual.nodes.isEmpty)
         XCTAssertTrue(visual.edges.isEmpty)
     }
+
+    func testEdgeCostsAndTourBadgesRenderedInSVG() throws {
+        var g = AdjacentGraph<Int, Double>(vertices: [0, 1, 2, 3], kind: .undirected)
+        _ = g.addEdge(u: 0, v: 1); g[Edge(u: 0, v: 1)] = 5.0
+        _ = g.addEdge(u: 1, v: 2); g[Edge(u: 1, v: 2)] = 12.0
+        _ = g.addEdge(u: 2, v: 3); g[Edge(u: 2, v: 3)] = 7.0
+        _ = g.addEdge(u: 3, v: 0); g[Edge(u: 3, v: 0)] = 9.0
+
+        let vGraph = LayoutBridge.layoutCircular(
+            graph: g,
+            title: "Tour With Costs",
+            tour: [0, 1, 2, 3, 0],
+            cutNodes: [1]
+        )
+
+        XCTAssertEqual(vGraph.badges.count, 4)
+        XCTAssertEqual(vGraph.edges.count, 4)
+        XCTAssertTrue(vGraph.edges.allSatisfy { $0.label != nil })
+
+        let svg = SVGGraphRenderer.renderToSVG(vGraph)
+        XCTAssertTrue(svg.contains("Tour With Costs"))
+        XCTAssertTrue(svg.contains("class=\"tour-badge\""))
+        XCTAssertTrue(svg.contains("class=\"edge-label\""))
+        XCTAssertTrue(svg.contains("5"))
+        XCTAssertTrue(svg.contains("12"))
+        XCTAssertTrue(svg.contains("filter=\"url(#cutGlow)\""))
+    }
+
+    func testHullsAndPartitionsRenderedInSVG() throws {
+        var g = AdjacentGraph<Int, Double>(vertices: [0, 1, 2, 3], kind: .undirected)
+        _ = g.addEdge(u: 0, v: 2); g[Edge(u: 0, v: 2)] = 10.0
+        _ = g.addEdge(u: 1, v: 3); g[Edge(u: 1, v: 3)] = 15.0
+
+        let vBipartite = try LayoutBridge.layoutBipartite(
+            graph: g,
+            partitionU: [0, 1],
+            partitionV: [2, 3],
+            labelU: "Left Side",
+            labelV: "Right Side",
+            matchedEdges: [Edge(u: 0, v: 2), Edge(u: 1, v: 3)]
+        )
+
+        let svgBipartite = SVGGraphRenderer.renderToSVG(vBipartite)
+        XCTAssertTrue(svgBipartite.contains("class=\"partition-lane\""))
+        XCTAssertTrue(svgBipartite.contains("Left Side"))
+        XCTAssertTrue(svgBipartite.contains("Right Side"))
+        XCTAssertTrue(svgBipartite.contains("10"))
+        XCTAssertTrue(svgBipartite.contains("15"))
+
+        let vComponents = try LayoutBridge.layoutComponents(
+            graph: g,
+            componentGroups: [[0, 2], [1, 3]],
+            hullLabels: ["Component A", "Component B"]
+        )
+        let svgComponents = SVGGraphRenderer.renderToSVG(vComponents)
+        XCTAssertTrue(svgComponents.contains("class=\"hull\""))
+        XCTAssertTrue(svgComponents.contains("Component A"))
+        XCTAssertTrue(svgComponents.contains("Component B"))
+    }
 }

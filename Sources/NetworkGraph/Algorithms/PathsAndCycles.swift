@@ -554,7 +554,6 @@ public enum PathsAndCycles {
 
         guard let end = lastNode else { return nil }
 
-        var tour = [0]
         var curr = end
         var mask = fullMask
         var pathRev = [end]
@@ -659,11 +658,25 @@ public enum PathsAndCycles {
 
     // MARK: - 3.12 Traveling Salesman Problem (Exact & Christofides)
 
-    /// Solves TSP exactly via Held-Karp dynamic programming ($O(n^2 2^n)$) for $n \le 20$, or 2-opt heuristic for larger $n$.
+    /// Solves the Traveling Salesman Problem (TSP) on an undirected weighted graph.
+    ///
+    /// Uses exact Held-Karp dynamic programming ($O(n^2 2^n)$) for $n \le 18$, and Christofides 1.5-approximation
+    /// with 2-opt local search heuristic for larger $n$.
     public static func travelingSalesman<V, W: BinaryFloatingPoint & Hashable & Codable>(
         graph: AdjacentGraph<V, W>
     ) -> TSPResult {
         let n = graph.vertexCount
+        guard n > 0 else { return TSPResult(tour: [], totalCost: 0) }
+        if n <= 2 {
+            let tour = Array(0..<n) + [0]
+            var cost = 0.0
+            for i in 0..<(tour.count - 1) {
+                let e = Edge(u: tour[i], v: tour[i + 1])
+                cost += Double(graph.edgeProperties[e] ?? graph.edgeProperties[e.reversed()] ?? W(0))
+            }
+            return TSPResult(tour: tour, totalCost: cost)
+        }
+
         let apsp = floydWarshall(graph: graph)
 
         if n <= 18 {
@@ -706,7 +719,6 @@ public enum PathsAndCycles {
             }
 
             if bestEnd != -1 {
-                var tour = [0]
                 var curr = bestEnd
                 var mask = fullMask
                 var pathRev = [bestEnd]
@@ -722,8 +734,132 @@ public enum PathsAndCycles {
             }
         }
 
-        // Christofides / 2-Opt Heuristic Approximation
-        return tsp2Opt(graph: graph, apsp: apsp)
+        // Christofides 1.5-Approximation + 2-Opt for larger n
+        return christofides(graph: graph)
+    }
+
+    /// Solves metric TSP using Christofides' 1.5-approximation algorithm:
+    /// 1. Finds a Minimum Spanning Tree $T$ of the metric completion.
+    /// 2. Identifies odd-degree vertices $O$ in $T$.
+    /// 3. Finds a minimum-weight perfect matching $M$ on $O$.
+    /// 4. Combines $T$ and $M$ to form an Eulerian multigraph $H$.
+    /// 5. Computes an Eulerian circuit on $H$.
+    /// 6. Shortcuts the Eulerian circuit to construct a Hamiltonian cycle.
+    /// 7. Refines the tour using 2-opt local search.
+    public static func christofides<V, W: BinaryFloatingPoint & Hashable & Codable>(
+        graph: AdjacentGraph<V, W>
+    ) -> TSPResult {
+        let n = graph.vertexCount
+        guard n >= 3 else {
+            let tour = Array(0..<n) + (n > 0 ? [0] : [])
+            var cost = 0.0
+            for i in 0..<(tour.count - 1) {
+                let e = Edge(u: tour[i], v: tour[i + 1])
+                cost += Double(graph.edgeProperties[e] ?? graph.edgeProperties[e.reversed()] ?? W(0))
+            }
+            return TSPResult(tour: tour, totalCost: cost)
+        }
+
+        // 1. Metric closure via all-pairs shortest paths
+        let apsp = floydWarshall(graph: graph)
+
+        // 2. Build metric complete graph
+        var metricGraph = AdjacentGraph<V, Double>(vertices: graph.vertices, kind: .undirected)
+        for i in 0..<n {
+            for j in (i + 1)..<n {
+                _ = metricGraph.addEdge(u: i, v: j)
+                metricGraph[Edge(u: i, v: j)] = apsp.distances[i][j]
+            }
+        }
+
+        // 3. Minimum Spanning Tree T of the metric graph
+        let mst = Connectivity.minimumSpanningTree(graph: metricGraph)
+
+        // 4. Find odd-degree vertices in T
+        var mstDeg = Array(repeating: 0, count: n)
+        for e in mst.edges {
+            mstDeg[e.u] += 1
+            mstDeg[e.v] += 1
+        }
+        let oddVertices = (0..<n).filter { mstDeg[$0] % 2 != 0 }
+
+        // 5. Minimum-weight perfect matching on odd vertices
+        var bestPairing: [(Int, Int)] = []
+        var minPairingCost = Double.infinity
+
+        func matchOdd(available: [Int], currentPairing: [(Int, Int)], currentCost: Double) {
+            if available.isEmpty {
+                if currentCost < minPairingCost {
+                    minPairingCost = currentCost
+                    bestPairing = currentPairing
+                }
+                return
+            }
+            let first = available[0]
+            for i in 1..<available.count {
+                let second = available[i]
+                var rem = available
+                rem.remove(at: i)
+                rem.remove(at: 0)
+                let cost = apsp.distances[first][second]
+                matchOdd(available: rem, currentPairing: currentPairing + [(first, second)], currentCost: currentCost + cost)
+            }
+        }
+
+        matchOdd(available: oddVertices, currentPairing: [], currentCost: 0)
+
+        // 6. Build Eulerian multigraph H = T ∪ M
+        var multigraph = AdjacentGraph<V, Double>(vertices: graph.vertices, kind: .undirected)
+        for e in mst.edges {
+            _ = multigraph.addEdge(u: e.u, v: e.v)
+            multigraph[Edge(u: e.u, v: e.v)] = apsp.distances[e.u][e.v]
+        }
+        for (u, v) in bestPairing {
+            _ = multigraph.addEdge(u: u, v: v)
+            multigraph[Edge(u: u, v: v)] = apsp.distances[u][v]
+        }
+
+        // 7. Compute Eulerian circuit on H
+        guard let euler = eulerCircuit(multigraph) else {
+            return tsp2Opt(graph: graph, apsp: apsp)
+        }
+
+        // 8. Shortcut Eulerian circuit to get a valid Hamiltonian cycle
+        var visited = Set<Int>()
+        var shortcutTour: [Int] = []
+        for v in euler.vertices {
+            if !visited.contains(v) {
+                visited.insert(v)
+                shortcutTour.append(v)
+            }
+        }
+        if let start = shortcutTour.first {
+            shortcutTour.append(start)
+        }
+
+        // 9. 2-Opt local search refinement
+        var tour = shortcutTour
+        var improved = true
+        while improved {
+            improved = false
+            for i in 1..<(tour.count - 2) {
+                for j in (i + 1)..<(tour.count - 1) {
+                    let d1 = apsp.distances[tour[i - 1]][tour[i]] + apsp.distances[tour[j]][tour[j + 1]]
+                    let d2 = apsp.distances[tour[i - 1]][tour[j]] + apsp.distances[tour[i]][tour[j + 1]]
+                    if d2 < d1 {
+                        tour[i...j].reverse()
+                        improved = true
+                    }
+                }
+            }
+        }
+
+        var totalCost = 0.0
+        for i in 0..<(tour.count - 1) {
+            totalCost += apsp.distances[tour[i]][tour[i + 1]]
+        }
+
+        return TSPResult(tour: tour, totalCost: totalCost)
     }
 
     private static func tsp2Opt<V, W: BinaryFloatingPoint>(

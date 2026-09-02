@@ -7,48 +7,87 @@ struct Net: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "net",
         abstract: "NetworkGraph - Combinatorial Optimization & Graph Visualization CLI",
-        subcommands: [RandomCmd.self, MstCmd.self, TspCmd.self, FlowCmd.self, ColorCmd.self, MatchCmd.self, PlanarCmd.self]
+        subcommands: [
+            RandomCmd.self,
+            MstCmd.self,
+            TspCmd.self,
+            EulerCmd.self,
+            PostmanCmd.self,
+            ShortestPathCmd.self,
+            FlowCmd.self,
+            ColorCmd.self,
+            MatchCmd.self,
+            PlanarCmd.self
+        ]
     )
 }
 
+// MARK: - 1. Random Graph Command
+
 struct RandomCmd: ParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "random", abstract: "Generate random graphs (Topics 1.1 - 1.12)")
+    static let configuration = CommandConfiguration(commandName: "random", abstract: "Generate random graphs with edge costs (Topics 1.1 - 1.12)")
 
     @Option(name: .shortAndLong, help: "Number of vertices") var vertices: Int = 8
     @Option(name: .shortAndLong, help: "Number of edges") var edges: Int = 12
     @Option(name: .shortAndLong, help: "Type: general, bipartite, regular, tree, hamilton, flow") var type: String = "general"
+    @Flag(name: .shortAndLong, help: "Assign random costs/weights to edges") var weighted: Bool = true
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
 
     func run() throws {
         print("🎲 Generating random '\(type)' graph with \(vertices) vertices...")
-        let graph: AdjacentGraph<Int, NoProperty>
+        var graph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
 
         switch type.lowercased() {
         case "bipartite":
             let v1 = vertices / 2
             let v2 = vertices - v1
-            graph = try BipartiteRandomGraph.build(partition: v1, partition: v2, edge: Swift.min(edges, v1 * v2))
+            let unweighted = try BipartiteRandomGraph.build(partition: v1, partition: v2, edge: Swift.min(edges, v1 * v2))
+            for e in unweighted.edges {
+                _ = graph.addEdge(u: e.u, v: e.v)
+                graph[e] = Double.random(in: 1.0...20.0).rounded()
+            }
         case "regular":
             let deg = Swift.min(3, vertices - 1)
             let safeDeg = (vertices * deg) % 2 == 0 ? deg : deg - 1
-            graph = try RandomRegularGraph.build(vertex: vertices, degree: Swift.max(2, safeDeg))
+            let unweighted = try RandomRegularGraph.build(vertex: vertices, degree: Swift.max(2, safeDeg))
+            for e in unweighted.edges {
+                _ = graph.addEdge(u: e.u, v: e.v)
+                graph[e] = Double.random(in: 1.0...20.0).rounded()
+            }
         case "tree":
-            graph = try RandomTree.labeledTree(vertex: vertices)
+            let unweighted = try RandomTree.labeledTree(vertex: vertices)
+            for e in unweighted.edges {
+                _ = graph.addEdge(u: e.u, v: e.v)
+                graph[e] = Double.random(in: 1.0...20.0).rounded()
+            }
         case "hamilton":
-            graph = try RandomConnectedGraph.hamiltonGraph(vertex: vertices, edge: Swift.max(vertices, edges))
+            let unweighted = try RandomConnectedGraph.hamiltonGraph(vertex: vertices, edge: Swift.max(vertices, edges))
+            for e in unweighted.edges {
+                _ = graph.addEdge(u: e.u, v: e.v)
+                graph[e] = Double.random(in: 1.0...20.0).rounded()
+            }
         default:
-            graph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
+            let unweighted = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
+            for e in unweighted.edges {
+                _ = graph.addEdge(u: e.u, v: e.v)
+                graph[e] = Double.random(in: 1.0...20.0).rounded()
+            }
         }
 
-        print(" Graph generated: \(graph.vertexCount) vertices, \(graph.edgeCount) edges")
+        print("✅ Graph generated: \(graph.vertexCount) vertices, \(graph.edgeCount) edges")
         if let outPath = output {
-            let vGraph = try LayoutBridge.layoutSugiyama(graph: graph, title: "Random \(type.capitalized) Graph")
+            let vGraph = try LayoutBridge.layoutSugiyama(
+                graph: graph,
+                title: "Random \(type.capitalized) Graph (\(graph.vertexCount)V, \(graph.edgeCount)E)"
+            )
             let svg = SVGGraphRenderer.renderToSVG(vGraph)
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
-            print(" Exported visualization to \(outPath)")
+            print("🖼️ Exported visualization with edge costs to \(outPath)")
         }
     }
 }
+
+// MARK: - 2. Minimum Spanning Tree Command
 
 struct MstCmd: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "mst", abstract: "Compute Minimum Spanning Tree (Topic 2.10)")
@@ -58,10 +97,10 @@ struct MstCmd: ParsableCommand {
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
 
     func run() throws {
-        let graph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
+        let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
         var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
-        for e in graph.edges {
-            let w = Double.random(in: 1.0...10.0).rounded()
+        for e in baseGraph.edges {
+            let w = Double.random(in: 1.0...15.0).rounded()
             _ = weightedGraph.addEdge(u: e.u, v: e.v)
             weightedGraph[e] = w
         }
@@ -71,24 +110,19 @@ struct MstCmd: ParsableCommand {
         print("   Edges in MST: \(mst.edges)")
 
         if let outPath = output {
-            var edgeLabels: [Edge: String] = [:]
-            for e in weightedGraph.edges {
-                if let w = weightedGraph.edgeProperties[e] {
-                    edgeLabels[e] = "\(Int(w))"
-                }
-            }
             let vGraph = try LayoutBridge.layoutSugiyama(
                 graph: weightedGraph,
                 title: "Minimum Spanning Tree (Weight: \(mst.totalWeight))",
-                highlightEdges: Set(mst.edges),
-                edgeLabels: edgeLabels
+                highlightEdges: Set(mst.edges)
             )
             let svg = SVGGraphRenderer.renderToSVG(vGraph)
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
-            print(" Exported visualization to \(outPath)")
+            print("🖼️ Exported visualization with edge costs to \(outPath)")
         }
     }
 }
+
+// MARK: - 3. Traveling Salesman Problem Command
 
 struct TspCmd: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "tsp", abstract: "Solve Traveling Salesman Problem (Topic 3.12)")
@@ -101,12 +135,12 @@ struct TspCmd: ParsableCommand {
         for i in 0..<cities {
             for j in (i + 1)..<cities {
                 _ = g.addEdge(u: i, v: j)
-                g[Edge(u: i, v: j)] = Double.random(in: 5.0...25.0).rounded()
+                g[Edge(u: i, v: j)] = Double.random(in: 5.0...30.0).rounded()
             }
         }
 
         let tsp = PathsAndCycles.travelingSalesman(graph: g)
-        print(" Optimal TSP Tour: \(tsp.tour)")
+        print("🚀 Optimal TSP Tour: \(tsp.tour)")
         print("💰 Total Travel Cost: \(tsp.totalCost)")
 
         if let outPath = output {
@@ -117,10 +151,135 @@ struct TspCmd: ParsableCommand {
             )
             let svg = SVGGraphRenderer.renderToSVG(vGraph)
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
-            print(" Exported visualization to \(outPath)")
+            print("🖼️ Exported visualization with tour step badges & edge costs to \(outPath)")
         }
     }
 }
+
+// MARK: - 4. Euler Circuit / Trail Command
+
+struct EulerCmd: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "euler", abstract: "Compute Eulerian Circuit or Trail (Topic 3.9)")
+
+    @Option(name: .shortAndLong, help: "Number of vertices") var vertices: Int = 6
+    @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
+
+    func run() throws {
+        // Construct an Eulerian graph (e.g. 2-regular or random regular)
+        let baseGraph = try RandomRegularGraph.build(vertex: vertices, degree: 4)
+        var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
+        for e in baseGraph.edges {
+            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            weightedGraph[e] = Double.random(in: 1.0...10.0).rounded()
+        }
+
+        guard let euler = PathsAndCycles.eulerCircuit(weightedGraph) else {
+            print("❌ Graph has no Eulerian circuit.")
+            return
+        }
+
+        print("🔄 Euler \(euler.isCircuit ? "Circuit" : "Trail"): \(euler.vertices)")
+        print("   Edges Traversed: \(euler.edges.count)")
+
+        if let outPath = output {
+            let vGraph = LayoutBridge.layoutCircular(
+                graph: weightedGraph,
+                title: "Eulerian \(euler.isCircuit ? "Circuit" : "Trail") (\(euler.edges.count) steps)",
+                tour: euler.vertices
+            )
+            let svg = SVGGraphRenderer.renderToSVG(vGraph)
+            try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
+            print("🖼️ Exported Eulerian tour visualization to \(outPath)")
+        }
+    }
+}
+
+// MARK: - 5. Chinese Postman Command
+
+struct PostmanCmd: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "postman", abstract: "Solve Chinese Postman Problem (Topic 3.11)")
+
+    @Option(name: .shortAndLong, help: "Number of vertices") var vertices: Int = 6
+    @Option(name: .shortAndLong, help: "Number of edges") var edges: Int = 9
+    @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
+
+    func run() throws {
+        let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
+        var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
+        for e in baseGraph.edges {
+            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            weightedGraph[e] = Double.random(in: 2.0...15.0).rounded()
+        }
+
+        guard let postman = PathsAndCycles.chinesePostmanTour(graph: weightedGraph) else {
+            print("❌ Could not compute Chinese Postman tour.")
+            return
+        }
+
+        var totalCost = 0.0
+        for i in 0..<(postman.vertices.count - 1) {
+            let u = postman.vertices[i]
+            let v = postman.vertices[i + 1]
+            totalCost += weightedGraph.edgeProperties[Edge(u: u, v: v)] ?? weightedGraph.edgeProperties[Edge(u: v, v: u)] ?? 0.0
+        }
+
+        print("📬 Chinese Postman Tour: \(postman.vertices)")
+        print("💰 Total Route Cost: \(totalCost)")
+
+        if let outPath = output {
+            let vGraph = LayoutBridge.layoutCircular(
+                graph: weightedGraph,
+                title: "Chinese Postman Tour (Cost: \(totalCost))",
+                tour: postman.vertices
+            )
+            let svg = SVGGraphRenderer.renderToSVG(vGraph)
+            try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
+            print("🖼️ Exported Chinese Postman visualization to \(outPath)")
+        }
+    }
+}
+
+// MARK: - 6. Shortest Path Command
+
+struct ShortestPathCmd: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "sp", abstract: "Compute Shortest Path via Bidirectional Dijkstra (Topic 3.3)")
+
+    @Option(name: .shortAndLong, help: "Number of vertices") var vertices: Int = 8
+    @Option(name: .shortAndLong, help: "Number of edges") var edges: Int = 14
+    @Option(name: .shortAndLong, help: "Source vertex") var source: Int = 0
+    @Option(name: .shortAndLong, help: "Target vertex") var target: Int = 7
+    @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
+
+    func run() throws {
+        let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
+        var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
+        for e in baseGraph.edges {
+            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            weightedGraph[e] = Double.random(in: 1.0...20.0).rounded()
+        }
+
+        guard let sp = PathsAndCycles.bidirectionalDijkstra(graph: weightedGraph, source: source, target: target) else {
+            print("❌ No path found between \(source) and \(target).")
+            return
+        }
+
+        print("⚡ Shortest Path from \(source) to \(target): \(sp.path)")
+        print("📏 Total Distance: \(sp.distance)")
+
+        if let outPath = output {
+            let vGraph = try LayoutBridge.layoutSugiyama(
+                graph: weightedGraph,
+                title: "Shortest Path \(source) → \(target) (Distance: \(sp.distance))",
+                tourSequence: sp.path
+            )
+            let svg = SVGGraphRenderer.renderToSVG(vGraph)
+            try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
+            print("🖼️ Exported Shortest Path visualization to \(outPath)")
+        }
+    }
+}
+
+// MARK: - 7. Network Flow Command
 
 struct FlowCmd: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "flow", abstract: "Solve Max Flow and Min-Cost Flow (Topics 8.1 - 8.2)")
@@ -129,7 +288,7 @@ struct FlowCmd: ParsableCommand {
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
 
     func run() throws {
-        let net = try RandomFlowNetwork.build(vertex: vertices, layerCount: 2)
+        let net = try RandomFlowNetwork.build(vertex: vertices, layerCount: 2, minCapacity: 5.0, maxCapacity: 25.0, minCost: 1.0, maxCost: 8.0)
         let (maxF, solvedNet) = AdvancedFlow.dinicMaxFlow(in: net, from: 0, to: vertices - 1)
         print("🌊 Maximum Network Flow (Dinic): \(maxF)")
 
@@ -138,7 +297,9 @@ struct FlowCmd: ParsableCommand {
             var hlEdges = Set<Edge>()
             for e in solvedNet.edges {
                 if let attr = solvedNet.edgeProperties[e] {
-                    labels[e] = "\(Int(attr.flow))/\(Int(attr.capacity))"
+                    var s = "\(Int(attr.flow))/\(Int(attr.capacity))"
+                    if attr.cost != 0 { s += " ($\(Int(attr.cost)))" }
+                    labels[e] = s
                     if attr.flow > 0 { hlEdges.insert(e) }
                 }
             }
@@ -150,11 +311,13 @@ struct FlowCmd: ParsableCommand {
                 edgeLabels: labels
             )
             let svg = SVGGraphRenderer.renderToSVG(vGraph)
-            try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
-            print(" Exported visualization to \(outPath)")
+            try svg.write(toFile: outPath, atomically: true, encoding: String.Encoding.utf8)
+            print("🖼️ Exported flow network visualization to \(outPath)")
         }
     }
 }
+
+// MARK: - 8. Vertex Coloring Command
 
 struct ColorCmd: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "color", abstract: "Vertex Coloring & Chromatic Polynomial (Topics 6.1 - 6.2)")
@@ -164,8 +327,14 @@ struct ColorCmd: ParsableCommand {
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
 
     func run() throws {
-        let graph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
-        let result = GraphColoring.color(graph)
+        let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
+        var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
+        for e in baseGraph.edges {
+            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            weightedGraph[e] = Double.random(in: 1.0...10.0).rounded()
+        }
+
+        let result = GraphColoring.color(weightedGraph)
         print("🎨 Chromatic Number χ(G): \(result.chromaticNumber)")
         print("   Color Classes: \(result.colorClasses)")
 
@@ -176,16 +345,18 @@ struct ColorCmd: ParsableCommand {
                 nodeColors[v] = theme.palette[c % theme.palette.count]
             }
             let vGraph = try LayoutBridge.layoutSugiyama(
-                graph: graph,
+                graph: weightedGraph,
                 title: "Vertex Coloring (χ = \(result.chromaticNumber))",
                 nodeColors: nodeColors
             )
             let svg = SVGGraphRenderer.renderToSVG(vGraph)
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
-            print(" Exported visualization to \(outPath)")
+            print("🖼️ Exported coloring visualization with edge costs to \(outPath)")
         }
     }
 }
+
+// MARK: - 9. Matching Command
 
 struct MatchCmd: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "match", abstract: "Solve Maximum & Min-Sum Matching (Topics 7.1 - 7.2)")
@@ -194,23 +365,36 @@ struct MatchCmd: ParsableCommand {
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
 
     func run() throws {
-        let graph = try BipartiteRandomGraph.build(partition: size, partition: size, edge: size * 2)
-        let matching = GraphMatching.hopcroftKarp(graph: graph, partitionV1: Set(0..<size))
+        let baseGraph = try BipartiteRandomGraph.build(partition: size, partition: size, edge: size * 2)
+        var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<(size * 2)), kind: .undirected)
+        for e in baseGraph.edges {
+            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            weightedGraph[e] = Double.random(in: 1.0...15.0).rounded()
+        }
+
+        let uPart = Array(0..<size)
+        let vPart = Array(size..<(size * 2))
+        let matching = GraphMatching.hopcroftKarp(graph: weightedGraph, partitionV1: Set(uPart))
         print("🤝 Maximum Bipartite Matching: \(matching.cardinality) pairs")
         print("   Matched Edges: \(matching.matchedEdges)")
 
         if let outPath = output {
-            let vGraph = try LayoutBridge.layoutSugiyama(
-                graph: graph,
-                title: "Maximum Bipartite Matching (\(matching.cardinality) pairs)",
-                highlightEdges: Set(matching.matchedEdges)
+            let vGraph = try LayoutBridge.layoutBipartite(
+                graph: weightedGraph,
+                partitionU: uPart,
+                partitionV: vPart,
+                labelU: "Workers (U)",
+                labelV: "Tasks (V)",
+                matchedEdges: Set(matching.matchedEdges)
             )
             let svg = SVGGraphRenderer.renderToSVG(vGraph)
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
-            print(" Exported visualization to \(outPath)")
+            print("🖼️ Exported bipartite matching visualization with edge costs to \(outPath)")
         }
     }
 }
+
+// MARK: - 10. Planarity Command
 
 struct PlanarCmd: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "planar", abstract: "Test Graph Planarity (Topic 4.1)")

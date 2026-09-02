@@ -21,12 +21,15 @@ swift run net <subcommand> [options]
 
 | Subcommand | Topic | Description |
 |---|---|---|
-| `random` | 1.1 – 1.10 | Generate random graphs with optional SVG export |
-| `mst` | 2.10 | Compute Minimum Spanning Tree |
-| `tsp` | 3.12 | Solve Traveling Salesman Problem |
-| `flow` | 8.1 | Compute Maximum Network Flow (Dinic) |
+| `random` | 1.1 – 1.10 | Generate random graphs with edge costs and SVG export |
+| `mst` | 2.10 | Compute Minimum Spanning Tree with highlighted edges and costs |
+| `tsp` | 3.12 | Solve Traveling Salesman Problem with tour sequence badges and costs |
+| `euler` | 3.9 | Compute Eulerian Circuit/Trail with step badges |
+| `postman` | 3.11 | Solve Chinese Postman Problem with route costs and badges |
+| `sp` | 3.3 | Compute Shortest Path via Bidirectional Dijkstra |
+| `flow` | 8.1 | Compute Maximum Network Flow (Dinic) with flow/capacity labels |
 | `color` | 6.1 | Vertex Coloring & Chromatic Number |
-| `match` | 7.1 | Maximum Bipartite Matching |
+| `match` | 7.1 | Maximum Bipartite Matching with rank-pinned partitions |
 | `planar` | 4.1 | Planarity Test |
 
 ---

@@ -383,6 +383,8 @@ public struct GraphLayoutEngine: Sendable {
         }
         var seen = Set<Edge>()
         var output: [EdgeRecord] = []
+        let labels = options.edgeLabels.isEmpty ? LayoutBridge.defaultEdgeLabels(for: graph) : options.edgeLabels
+
         for edge in graph.edges {
             let key: Edge
             if graph.kind == .undirected {
@@ -399,7 +401,7 @@ public struct GraphLayoutEngine: Sendable {
                 (graph.kind == .undirected && options.matchedEdges.contains(reverse))
             output.append(EdgeRecord(
                 id: UInt64(output.count), edge: key,
-                label: options.edgeLabels[key] ?? (graph.kind == .undirected ? options.edgeLabels[reverse] : nil),
+                label: labels[key] ?? (graph.kind == .undirected ? labels[reverse] : nil),
                 isHighlighted: highlighted || matched, isMatched: matched,
                 sequenceNumber: tourSteps[key] ?? (graph.kind == .undirected ? tourSteps[reverse] : nil)
             ))
@@ -459,6 +461,33 @@ public struct GraphLayoutEngine: Sendable {
 // MARK: - Compatibility entry points
 
 public enum LayoutBridge {
+
+    /// Automatically extracts formatted edge labels/costs from graph edge properties.
+    public static func defaultEdgeLabels<V, W>(for graph: AdjacentGraph<V, W>) -> [Edge: String] {
+        var labels: [Edge: String] = [:]
+        for e in graph.edges {
+            if let prop = graph.edgeProperties[e] {
+                if let d = prop as? Double {
+                    labels[e] = d.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(d))" : String(format: "%.1f", d)
+                } else if let f = prop as? Float {
+                    labels[e] = f.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(f))" : String(format: "%.1f", f)
+                } else if let i = prop as? Int {
+                    labels[e] = "\(i)"
+                } else if let we = prop as? WeightedEdge {
+                    labels[e] = "\(we.weight)"
+                } else if let fe = prop as? FlowEdge {
+                    var s = "\(Int(fe.flow))/\(Int(fe.capacity))"
+                    if fe.cost != 0 {
+                        let costStr = fe.cost.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(fe.cost))" : String(format: "%.1f", fe.cost)
+                        s += " ($\(costStr))"
+                    }
+                    labels[e] = s
+                }
+            }
+        }
+        return labels
+    }
+
     public static func layoutSugiyama<V, W>(
         graph: AdjacentGraph<V, W>, title: String = "Graph Layout",
         highlightEdges: Set<Edge> = [], highlightNodes: Set<Int> = [], cutNodes: Set<Int> = [],
@@ -467,10 +496,11 @@ public enum LayoutBridge {
         rankHints: [Int: Int] = [:], theme: GraphVisualTheme = .modernDark
     ) throws -> VisualGraph {
         let hints = rankHints.mapValues { GraphRankHint(rank: $0, constraint: .preferred) }
+        let labels = edgeLabels.isEmpty ? defaultEdgeLabels(for: graph) : edgeLabels
         return try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
             title: title, rankHints: hints, highlightEdges: highlightEdges,
             highlightNodes: highlightNodes, cutNodes: cutNodes, nodeColors: nodeColors,
-            edgeLabels: edgeLabels, tourSequence: tourSequence,
+            edgeLabels: labels, tourSequence: tourSequence,
             componentGroups: componentGroups, theme: theme
         ))
     }
@@ -485,9 +515,10 @@ public enum LayoutBridge {
             VisualPartition(label: labelU, members: partitionU, color: theme.palette[0]),
             VisualPartition(label: labelV, members: partitionV, color: theme.palette[3])
         ]
+        let labels = edgeLabels.isEmpty ? defaultEdgeLabels(for: graph) : edgeLabels
         return try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
             title: "Bipartite Layout", mode: .bipartite(partitionU: partitionU, partitionV: partitionV),
-            nodeColors: nodeColors, edgeLabels: edgeLabels, matchedEdges: matchedEdges,
+            nodeColors: nodeColors, edgeLabels: labels, matchedEdges: matchedEdges,
             partitions: partitions, theme: theme, direction: .leftToRight
         ))
     }
@@ -499,9 +530,10 @@ public enum LayoutBridge {
         theme: GraphVisualTheme = .modernDark
     ) throws -> VisualGraph {
         let pinned = rankHints.mapValues { GraphRankHint(rank: $0, constraint: .pinned) }
+        let labels = edgeLabels.isEmpty ? defaultEdgeLabels(for: graph) : edgeLabels
         return try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
             title: title, rankHints: pinned, highlightEdges: highlightEdges,
-            nodeColors: nodeColors, edgeLabels: edgeLabels, theme: theme
+            nodeColors: nodeColors, edgeLabels: labels, theme: theme
         ))
     }
 
@@ -511,9 +543,10 @@ public enum LayoutBridge {
         nodeColors: [Int: String] = [:], edgeLabels: [Edge: String] = [:],
         theme: GraphVisualTheme = .modernDark
     ) throws -> VisualGraph {
-        try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
+        let labels = edgeLabels.isEmpty ? defaultEdgeLabels(for: graph) : edgeLabels
+        return try GraphLayoutEngine().layout(graph, options: GraphLayoutOptions(
             title: title, highlightEdges: highlightEdges, nodeColors: nodeColors,
-            edgeLabels: edgeLabels, componentGroups: componentGroups,
+            edgeLabels: labels, componentGroups: componentGroups,
             hullLabels: hullLabels, theme: theme
         ))
     }
@@ -530,10 +563,12 @@ public enum LayoutBridge {
                              nodeColors: nodeColors, edgeLabels: edgeLabels, theme: theme)
     }
 
-    /// Circular layout remains in Swift because it is intentionally independent of hierarchical routing.
+    /// Circular layout with tour sequence step badges and full edge cost annotations.
     public static func layoutCircular<V, W>(
-        graph: AdjacentGraph<V, W>, title: String = "Circular Layout", tour: [Int]? = nil,
-        highlightEdges: Set<Edge> = [], nodeColors: [Int: String] = [:],
+        graph: AdjacentGraph<V, W>, title: String = "Circular Layout",
+        tour: [Int]? = nil, tourSequence: [Int]? = nil,
+        highlightEdges: Set<Edge> = [], highlightNodes: Set<Int> = [], cutNodes: Set<Int> = [],
+        edgeLabels: [Edge: String] = [:], nodeColors: [Int: String] = [:],
         theme: GraphVisualTheme = .modernDark
     ) -> VisualGraph {
         let n = graph.vertexCount
@@ -544,11 +579,19 @@ public enum LayoutBridge {
             let angle = Double(vertex) / Double(n) * 2 * Double.pi - Double.pi / 2
             let point = VisualPoint(x: width / 2 + radius * cos(angle), y: height / 2 + radius * sin(angle))
             positions[vertex] = point
-            return VisualNode(id: vertex, label: "\(vertex)", x: point.x, y: point.y, color: nodeColors[vertex])
+            return VisualNode(
+                id: vertex, label: "\(vertex)", x: point.x, y: point.y,
+                color: nodeColors[vertex],
+                isHighlighted: highlightNodes.contains(vertex),
+                isCutNode: cutNodes.contains(vertex)
+            )
         }
-        let pairs = tour.map { Array(zip($0, $0.dropFirst())) } ?? []
+        let effectiveTour = tourSequence ?? tour
+        let pairs = effectiveTour.map { Array(zip($0, $0.dropFirst())) } ?? []
         var seen = Set<Edge>()
         var edges: [VisualEdge] = []
+        let labels = edgeLabels.isEmpty ? defaultEdgeLabels(for: graph) : edgeLabels
+
         for edge in graph.edges {
             let key = graph.kind == .undirected && edge.u > edge.v ? edge.reversed() : edge
             if graph.kind == .undirected && !seen.insert(key).inserted { continue }
@@ -559,10 +602,12 @@ public enum LayoutBridge {
             }.map { $0 + 1 }
             let highlighted = highlightEdges.contains(key) ||
                 (graph.kind == .undirected && highlightEdges.contains(key.reversed())) || step != nil
+            let label = labels[key] ?? (graph.kind == .undirected ? labels[key.reversed()] : nil)
+            let mid = VisualPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
             edges.append(VisualEdge(id: UInt64(edges.count), from: key.u, to: key.v,
-                                    isHighlighted: highlighted, sequenceNumber: step,
+                                    label: label, isHighlighted: highlighted, sequenceNumber: step,
                                     waypoints: [start, end], segments: [.line(start: start, end: end)],
-                                    isSelfLoop: key.u == key.v))
+                                    labelPosition: mid, isSelfLoop: key.u == key.v))
         }
         let badges = pairs.enumerated().compactMap { step, pair -> VisualBadge? in
             guard let start = positions[pair.0], let end = positions[pair.1] else { return nil }

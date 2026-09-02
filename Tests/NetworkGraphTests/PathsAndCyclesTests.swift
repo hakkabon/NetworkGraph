@@ -151,4 +151,23 @@ final class PathsAndCyclesTests: XCTestCase {
         XCTAssertEqual(tsp.tour.count, 5)
         XCTAssertEqual(tsp.totalCost, 4.0, accuracy: 0.001)
     }
+
+    func test3_12_ChristofidesTSP() {
+        // Metric graph with 5 vertices
+        var g = AdjacentGraph<Int, Double>(vertices: [0, 1, 2, 3, 4], kind: .undirected)
+        _ = g.addEdge(u: 0, v: 1); g[Edge(u: 0, v: 1)] = 2.0
+        _ = g.addEdge(u: 1, v: 2); g[Edge(u: 1, v: 2)] = 3.0
+        _ = g.addEdge(u: 2, v: 3); g[Edge(u: 2, v: 3)] = 2.0
+        _ = g.addEdge(u: 3, v: 4); g[Edge(u: 3, v: 4)] = 3.0
+        _ = g.addEdge(u: 4, v: 0); g[Edge(u: 4, v: 0)] = 2.0
+        _ = g.addEdge(u: 0, v: 2); g[Edge(u: 0, v: 2)] = 4.0
+        _ = g.addEdge(u: 1, v: 3); g[Edge(u: 1, v: 3)] = 4.0
+        _ = g.addEdge(u: 2, v: 4); g[Edge(u: 2, v: 4)] = 4.0
+
+        let result = PathsAndCycles.christofides(graph: g)
+        XCTAssertEqual(result.tour.count, 6)
+        XCTAssertEqual(result.tour.first, result.tour.last)
+        XCTAssertEqual(Set(result.tour).count, 5)
+        XCTAssertLessThanOrEqual(result.totalCost, 12.0)
+    }
 }

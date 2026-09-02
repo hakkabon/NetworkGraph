@@ -33,6 +33,21 @@ public enum RandomRegularGraph {
             return AdjacentGraph<Int, NoProperty>(vertices: Array(0..<V), kind: .undirected)
         }
 
+        // If degree is dense, generate the sparse complement graph and invert it
+        if d > (V - 1) / 2 {
+            let compDegree = (V - 1) - d
+            let compGraph = try build(vertex: V, degree: compDegree, maxRetries: maxRetries)
+            var graph = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<V), kind: .undirected)
+            for i in 0..<V {
+                for j in (i + 1)..<V {
+                    if !compGraph.isAdjacent(u: i, v: j) {
+                        _ = graph.addEdge(u: i, v: j)
+                    }
+                }
+            }
+            return graph
+        }
+
         // Steger-Wormald heuristic / pairing configuration model
         for _ in 0..<maxRetries {
             var points: [Int] = []
