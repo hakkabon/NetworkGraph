@@ -95,6 +95,7 @@ struct MstCmd: ParsableCommand {
     @Option(name: .shortAndLong, help: "Number of vertices") var vertices: Int = 8
     @Option(name: .shortAndLong, help: "Number of edges") var edges: Int = 14
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
+    @Option(name: .long, help: "Output Graphviz DOT/PDF file (requires 'dot' from graphviz)") var graphviz: String?
 
     func run() throws {
         let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
@@ -119,6 +120,23 @@ struct MstCmd: ParsableCommand {
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
             print("🖼️ Exported visualization with edge costs to \(outPath)")
         }
+
+        if let gvPath = graphviz {
+            let dot = GraphvizExporter.dot(
+                graph: weightedGraph,
+                title: "MST (Weight: \(mst.totalWeight))",
+                highlightEdges: Set(mst.edges)
+            )
+            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
+            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
+            print("📐 DOT source written to \(dotPath)")
+            do {
+                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
+                print("🖼️ Graphviz render opened: \(gvPath)")
+            } catch GraphvizExporterError.dotNotFound {
+                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
+            }
+        }
     }
 }
 
@@ -129,6 +147,7 @@ struct TspCmd: ParsableCommand {
 
     @Option(name: .shortAndLong, help: "Number of cities") var cities: Int = 6
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
+    @Option(name: .long, help: "Output Graphviz DOT/PDF file (requires 'dot' from graphviz)") var graphviz: String?
 
     func run() throws {
         var g = AdjacentGraph<Int, Double>(vertices: Array(0..<cities), kind: .undirected)
@@ -153,6 +172,25 @@ struct TspCmd: ParsableCommand {
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
             print("🖼️ Exported visualization with tour step badges & edge costs to \(outPath)")
         }
+
+        if let gvPath = graphviz {
+            let dot = GraphvizExporter.dot(
+                graph: g,
+                title: "TSP Tour (Cost: \(tsp.totalCost))",
+                tour: tsp.tour
+            )
+            // Write .dot file alongside the rendered output
+            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
+            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
+            print("📐 DOT source written to \(dotPath)")
+            do {
+                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
+                print("🖼️ Graphviz render opened: \(gvPath)")
+            } catch GraphvizExporterError.dotNotFound {
+                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
+                print("   DOT source saved to \(dotPath) — render manually with: dot -Tpdf \(dotPath) -o tour.pdf")
+            }
+        }
     }
 }
 
@@ -163,6 +201,7 @@ struct EulerCmd: ParsableCommand {
 
     @Option(name: .shortAndLong, help: "Number of vertices") var vertices: Int = 6
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
+    @Option(name: .long, help: "Output Graphviz DOT/PDF file (requires 'dot' from graphviz)") var graphviz: String?
 
     func run() throws {
         // Construct an Eulerian graph (e.g. 2-regular or random regular)
@@ -191,6 +230,23 @@ struct EulerCmd: ParsableCommand {
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
             print("🖼️ Exported Eulerian tour visualization to \(outPath)")
         }
+
+        if let gvPath = graphviz {
+            let dot = GraphvizExporter.dot(
+                graph: weightedGraph,
+                title: "Eulerian \(euler.isCircuit ? "Circuit" : "Trail")",
+                tour: euler.vertices
+            )
+            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
+            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
+            print("📐 DOT source written to \(dotPath)")
+            do {
+                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
+                print("🖼️ Graphviz render opened: \(gvPath)")
+            } catch GraphvizExporterError.dotNotFound {
+                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
+            }
+        }
     }
 }
 
@@ -202,6 +258,7 @@ struct PostmanCmd: ParsableCommand {
     @Option(name: .shortAndLong, help: "Number of vertices") var vertices: Int = 6
     @Option(name: .shortAndLong, help: "Number of edges") var edges: Int = 9
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
+    @Option(name: .long, help: "Output Graphviz DOT/PDF file (requires 'dot' from graphviz)") var graphviz: String?
 
     func run() throws {
         let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
@@ -236,6 +293,23 @@ struct PostmanCmd: ParsableCommand {
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
             print("🖼️ Exported Chinese Postman visualization to \(outPath)")
         }
+
+        if let gvPath = graphviz {
+            let dot = GraphvizExporter.dot(
+                graph: weightedGraph,
+                title: "Chinese Postman Tour (Cost: \(totalCost))",
+                tour: postman.vertices
+            )
+            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
+            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
+            print("📐 DOT source written to \(dotPath)")
+            do {
+                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
+                print("🖼️ Graphviz render opened: \(gvPath)")
+            } catch GraphvizExporterError.dotNotFound {
+                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
+            }
+        }
     }
 }
 
@@ -249,6 +323,7 @@ struct ShortestPathCmd: ParsableCommand {
     @Option(name: .shortAndLong, help: "Source vertex") var source: Int = 0
     @Option(name: .shortAndLong, help: "Target vertex") var target: Int = 7
     @Option(name: .shortAndLong, help: "Output SVG file path") var output: String?
+    @Option(name: .long, help: "Output Graphviz DOT/PDF file (requires 'dot' from graphviz)") var graphviz: String?
 
     func run() throws {
         let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
@@ -275,6 +350,24 @@ struct ShortestPathCmd: ParsableCommand {
             let svg = SVGGraphRenderer.renderToSVG(vGraph)
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
             print("🖼️ Exported Shortest Path visualization to \(outPath)")
+        }
+
+        if let gvPath = graphviz {
+            let dot = GraphvizExporter.dot(
+                graph: weightedGraph,
+                title: "Shortest Path \(source) to \(target)",
+                tour: sp.path,
+                highlightEdges: Set(zip(sp.path, sp.path.dropFirst()).map { Edge(u: $0.0, v: $0.1) })
+            )
+            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
+            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
+            print("📐 DOT source written to \(dotPath)")
+            do {
+                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
+                print("🖼️ Graphviz render opened: \(gvPath)")
+            } catch GraphvizExporterError.dotNotFound {
+                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
+            }
         }
     }
 }

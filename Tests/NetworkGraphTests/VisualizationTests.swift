@@ -137,7 +137,7 @@ final class VisualizationTests: XCTestCase {
             let dx = labelPos.x - badgePos.x
             let dy = labelPos.y - badgePos.y
             let dist = sqrt(dx * dx + dy * dy)
-            XCTAssertGreaterThan(dist, 20.0, "Tour badge and edge cost label should not collide")
+            XCTAssertGreaterThan(dist, 30.0, "Tour badge and edge cost label should not collide")
         }
 
         let svg = SVGGraphRenderer.renderToSVG(vGraph)

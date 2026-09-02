@@ -89,7 +89,11 @@ OPTIONS:
 swift run net mst --vertices 10 --edges 20 --output mst.svg
 # 🌲 Minimum Spanning Tree Total Weight: 32.0
 #    Edges in MST: [0 → 3, 1 → 5, ...]
-#    Exported visualization to mst.svg
+
+# Also render as PDF via Graphviz
+swift run net mst --vertices 10 --edges 20 --graphviz mst.pdf
+# 📐 DOT source written to mst.pdf.dot
+# 🖼️ Graphviz render opened: mst.pdf
 ```
 
 ---
@@ -99,24 +103,33 @@ swift run net mst --vertices 10 --edges 20 --output mst.svg
 Generates a complete weighted graph on `n` cities and solves the Traveling Salesman Problem using Held-Karp exact DP (small $n$) with 2-opt refinement.
 
 ```
-USAGE: net tsp [--cities <n>] [--output <path>]
+USAGE: net tsp [--cities <n>] [--output <path>] [--graphviz <path>]
 
 OPTIONS:
   -c, --cities <n>        Number of cities (default: 6)
   -o, --output <path>     Output SVG file path (optional)
+      --graphviz <path>   Output Graphviz PDF/PNG/SVG file; also writes a .dot
+                          alongside it (requires 'dot' from Graphviz)
 ```
 
 **Output:**
 - Optimal tour vertex sequence printed to stdout
 - Total travel cost printed to stdout
-- SVG with tour edges highlighted on a circular layout
+- SVG: tour edges highlighted on a circular layout with step badges and cost labels
+- DOT/PDF: edges labelled `"<step>: <cost>"` in red; non-tour edges in grey
 
 **Example:**
 ```bash
+# SVG circular layout
 swift run net tsp --cities 7 --output tsp.svg
 # 🚀 Optimal TSP Tour: [0, 4, 2, 6, 3, 1, 5, 0]
 # 💰 Total Travel Cost: 87.0
-#    Exported visualization to tsp.svg
+
+# Graphviz PDF (also saves tsp.pdf.dot)
+swift run net tsp --cities 7 --graphviz tsp.pdf
+
+# Both at once
+swift run net tsp --cities 5 --output tsp.svg --graphviz tsp.pdf
 ```
 
 ---
@@ -237,3 +250,58 @@ All subcommands with `--output` produce self-contained `.svg` files:
 # Generate and immediately open in browser
 swift run net mst --vertices 12 --output mst.svg && open mst.svg
 ```
+
+---
+
+## Graphviz Output Format
+
+The following subcommands also support `--graphviz <path>` for DOT-format rendering via Graphviz:
+`mst`, `tsp`, `euler`, `postman`, `sp`
+
+```
+--graphviz <path>    Output path for the rendered file (.pdf, .png, .svg)
+                     A companion .dot source file is always written alongside it.
+                     Requires Graphviz to be installed: brew install graphviz
+```
+
+**What gets rendered:**
+- Tour/solution edges highlighted in **red** (`color="#f43f5e"`, `penwidth=2.5`)
+- Each tour edge labelled `"<step>: <cost>"` e.g. `"3: 15"` = step 3, cost 15
+- Non-tour edges in grey with just the cost label
+- Tour vertices outlined in red
+- Non-tour vertices in dark slate
+
+**Example (TSP):**
+```bash
+swift run net tsp --cities 6 --graphviz tsp.pdf
+# 🚀 Optimal TSP Tour: [0, 2, 4, 3, 1, 5, 0]
+# 💰 Total Travel Cost: 72.0
+# 📐 DOT source written to tsp.pdf.dot
+# 🖼️ Graphviz render opened: tsp.pdf
+```
+
+**Manual rendering from saved DOT:**
+```bash
+dot -Tpdf tsp.pdf.dot -o tsp.pdf
+dot -Tsvg tsp.pdf.dot -o tsp.svg
+dot -Tpng tsp.pdf.dot -o tsp.png
+```
+
+**From code using `GraphvizExporter`:**
+```swift
+import NetworkGraph
+
+// Generate DOT string
+let dot = GraphvizExporter.dot(graph: g, title: "My Tour", tour: tsp.tour)
+
+// Render and open
+try GraphvizExporter.render(dot: dot, to: "tour.pdf", open: true)
+
+// Or from a VisualGraph directly (includes layout positions)
+let vGraph = LayoutBridge.layoutCircular(graph: g, tour: tsp.tour)
+let dot = vGraph.graphvizDOT
+try dot.write(toFile: "tour.dot", atomically: true, encoding: .utf8)
+```
+
+**Format inference:** The output format is inferred from the file extension. Supported: `.pdf` (default), `.svg`, `.png`, `.jpg`.
+

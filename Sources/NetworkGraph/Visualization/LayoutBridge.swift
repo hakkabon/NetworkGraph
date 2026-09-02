@@ -466,8 +466,10 @@ public struct GraphLayoutEngine: Sendable {
             let startPoint = isForward ? waypoints[0] : waypoints[waypoints.count - 1]
             let endPoint = isForward ? waypoints[waypoints.count - 1] : waypoints[0]
 
-            // Place badge at 32% from step start towards step end with a slight perpendicular offset
-            let badgePos = LayoutBridge.pointAlongEdge(from: startPoint, to: endPoint, fraction: 0.32, normalOffset: 8.0)
+            // Place badge at 22% from step start towards step end with a clear perpendicular offset.
+            // Using t=0.22 keeps the badge close to the step's origin node (signals direction),
+            // while the cost label sits at t=0.72 on the opposite normal side (±15px separation).
+            let badgePos = LayoutBridge.pointAlongEdge(from: startPoint, to: endPoint, fraction: 0.22, normalOffset: 15.0)
             return VisualBadge(position: badgePos, number: step + 1)
         }
     }
@@ -635,11 +637,12 @@ public enum LayoutBridge {
                 (graph.kind == .undirected && highlightEdges.contains(key.reversed())) || step != nil
             let label = labels[key] ?? (graph.kind == .undirected ? labels[key.reversed()] : nil)
 
-            // When an edge is part of the tour, position the cost label at 65% with normal offset
-            // to ensure it never collides with the tour sequence badge at 32%
+            // When an edge is part of the tour, position the cost label at t=0.72 on the
+            // opposite normal side from the badge (badge is at t=0.22, +15px normal).
+            // For non-tour edges, place label at midpoint as usual.
             let labelPos: VisualPoint
             if step != nil {
-                labelPos = pointAlongEdge(from: start, to: end, fraction: 0.65, normalOffset: -9.0)
+                labelPos = pointAlongEdge(from: start, to: end, fraction: 0.72, normalOffset: -15.0)
             } else {
                 labelPos = VisualPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
             }
@@ -652,7 +655,7 @@ public enum LayoutBridge {
 
         let badges = pairs.enumerated().compactMap { step, pair -> VisualBadge? in
             guard let start = positions[pair.0], let end = positions[pair.1] else { return nil }
-            let badgePos = pointAlongEdge(from: start, to: end, fraction: 0.32, normalOffset: 9.0)
+            let badgePos = pointAlongEdge(from: start, to: end, fraction: 0.22, normalOffset: 15.0)
             return VisualBadge(position: badgePos, number: step + 1)
         }
         return VisualGraph(title: title, nodes: nodes, edges: edges, width: width, height: height,
