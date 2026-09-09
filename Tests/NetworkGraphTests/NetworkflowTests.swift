@@ -17,11 +17,11 @@ private func makeSimpleNetwork() -> FlowNetwork {
         FlowVertex(label: "B"),
         FlowVertex(label: "T")
     ])
-    _ = g.addEdge(u: 0, v: 1)   // S→A
-    _ = g.addEdge(u: 0, v: 2)   // S→B
-    _ = g.addEdge(u: 1, v: 3)   // A→T
-    _ = g.addEdge(u: 2, v: 3)   // B→T
-    _ = g.addEdge(u: 1, v: 2)   // A→B
+    _ = try! g.addEdge(u: 0, v: 1)   // S→A
+    _ = try! g.addEdge(u: 0, v: 2)   // S→B
+    _ = try! g.addEdge(u: 1, v: 3)   // A→T
+    _ = try! g.addEdge(u: 2, v: 3)   // B→T
+    _ = try! g.addEdge(u: 1, v: 2)   // A→B
     g.setEdgeAttributes(FlowEdge(capacity: 10), for: Edge(u: 0, v: 1))
     g.setEdgeAttributes(FlowEdge(capacity: 5),  for: Edge(u: 0, v: 2))
     g.setEdgeAttributes(FlowEdge(capacity: 10), for: Edge(u: 1, v: 3))
@@ -91,7 +91,7 @@ final class FlowEdgeTests: XCTestCase {
 
     func testSetEdgeAttributesOnGraph() {
         var g = FlowNetwork(vertices: [FlowVertex(label: "A"), FlowVertex(label: "B")])
-        _ = g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 0, v: 1)
         g.setEdgeAttributes(FlowEdge(capacity: 8, cost: 2), for: Edge(u: 0, v: 1))
         let attr = g.edgeAttributes(for: Edge(u: 0, v: 1))!
         XCTAssertEqual(attr.capacity, 8)
@@ -115,8 +115,8 @@ final class MaxFlowTests: XCTestCase {
         var g = FlowNetwork(vertices: [FlowVertex(label: "S"),
                                        FlowVertex(label: "A"),
                                        FlowVertex(label: "T")])
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
         g.setEdgeAttributes(FlowEdge(capacity: 5), for: Edge(u: 0, v: 1))
         g.setEdgeAttributes(FlowEdge(capacity: 3), for: Edge(u: 1, v: 2))
         let (flow, _) = maxFlow(in: g, from: 0, to: 2)
@@ -133,7 +133,7 @@ final class MaxFlowTests: XCTestCase {
 
     func testMaxFlowSingleEdge() {
         var g = FlowNetwork(vertices: [FlowVertex(label: "S"), FlowVertex(label: "T")])
-        _ = g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 0, v: 1)
         g.setEdgeAttributes(FlowEdge(capacity: 7), for: Edge(u: 0, v: 1))
         let (flow, _) = maxFlow(in: g, from: 0, to: 1)
         XCTAssertEqual(flow, 7, accuracy: 1e-9)
@@ -192,8 +192,8 @@ final class NetworkFlowGraphProtocolTests: XCTestCase {
         let s = g.addVertex(v: FlowVertex(label: "source"))
         let m = g.addVertex(v: FlowVertex(label: "mid"))
         let t = g.addVertex(v: FlowVertex(label: "sink"))
-        _ = g.addEdge(u: s, v: m)
-        _ = g.addEdge(u: m, v: t)
+        _ = try! g.addEdge(u: s, v: m)
+        _ = try! g.addEdge(u: m, v: t)
         g.setEdgeAttributes(FlowEdge(capacity: 5), for: Edge(u: s, v: m))
         g.setEdgeAttributes(FlowEdge(capacity: 5), for: Edge(u: m, v: t))
         XCTAssertEqual(g.vertexCount, 3)

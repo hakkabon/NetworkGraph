@@ -7,52 +7,11 @@
 
 import Foundation
 
-// MARK: - Edge Property Protocols
-#if false
-/// An edge that carries a single numeric weight.
-public protocol WeightedEdge {
-    associatedtype Weight: Numeric & Comparable & Codable
-    var weight: Weight { get }
-}
-
-/// An edge with a read/write weight.
-public protocol MutableWeightedEdge: WeightedEdge {
-    var weight: Weight { get set }
-}
-
-/// An edge that carries an arbitrary metadata dictionary.
-public protocol AnnotatedEdge {
-    var attributes: [String: String] { get }
-}
-
-/// An edge with read/write access to its metadata dictionary.
-public protocol MutableAnnotatedEdge: AnnotatedEdge {
-    var attributes: [String: String] { get set }
-}
-
-/// An edge that participates in network-flow modelling.
-/// Provides capacity, current flow, lower bound, and cost per unit of flow.
-public protocol FlowEdge {
-    /// Maximum flow that can be routed along this edge.
-    var capacity: Double { get set }
-    /// Current flow assigned to this edge (must satisfy 0 ≤ flow ≤ capacity).
-    var flow: Double { get set }
-    /// Minimum required flow along this edge (default 0).
-    var lowerBound: Double { get set }
-    /// Cost per unit of flow (for min-cost flow problems).
-    var cost: Double { get set }
-    /// Remaining capacity: capacity − flow.
-    var residualCapacity: Double { get }
-    /// Whether additional flow can be pushed along this edge.
-    var isSaturated: Bool { get }
-}
-#endif
-
 // MARK: - Concrete Edge Property Types
 
 /// A plain numeric weight on an edge.
 public struct WeightedEdgeProperty<W: Numeric & Comparable & Hashable & Codable>:
-    Hashable, Codable, /*MutableWeightedEdge,*/ CustomStringConvertible {
+    Hashable, Codable, CustomStringConvertible {
 
     public var weight: W
 
@@ -65,7 +24,7 @@ public struct WeightedEdgeProperty<W: Numeric & Comparable & Hashable & Codable>
 
 /// An edge property that combines a numeric weight with open-ended attributes.
 public struct AnnotatedEdgeProperty<W: Numeric & Comparable & Hashable & Codable>:
-    Hashable, Codable, /*MutableWeightedEdge, MutableAnnotatedEdge,*/ CustomStringConvertible {
+    Hashable, Codable, CustomStringConvertible {
 
     public var weight: W
     public var attributes: [String: String]
@@ -85,7 +44,7 @@ public struct AnnotatedEdgeProperty<W: Numeric & Comparable & Hashable & Codable
 /// A full network-flow edge property.
 /// Stores capacity, current flow, lower bound, and cost, together with
 /// optional attributes for visualisation or external tooling.
-public struct FlowEdgeProperty: Hashable, Codable, /*FlowEdge, MutableAnnotatedEdge,*/ CustomStringConvertible {
+public struct FlowEdgeProperty: Hashable, Codable, CustomStringConvertible {
 
     public var capacity: Double
     public var flow: Double

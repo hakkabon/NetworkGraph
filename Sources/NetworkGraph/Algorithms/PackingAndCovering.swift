@@ -69,7 +69,7 @@ public enum PackingAndCovering {
             for i in 0..<n {
                 for j in 0..<n {
                     if costMatrix[i][j] <= threshold {
-                        _ = g.addEdge(u: i, v: n + j)
+                        _ = g._addEdge(u: i, v: n + j)
                     }
                 }
             }

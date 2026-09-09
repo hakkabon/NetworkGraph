@@ -140,7 +140,7 @@ public protocol MutableGraph: Graph {
     /// Adds a directed edge from index `u` to index `v`.
     /// Returns `true` on success.
     @discardableResult
-    mutating func addEdge(u: Int, v: Int) -> Bool
+    mutating func addEdge(u: Int, v: Int) throws -> Bool
 
     /// Removes the edge from index `u` to index `v`.
     mutating func removeEdge(u: Int, v: Int)

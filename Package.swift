@@ -13,7 +13,7 @@ let package = Package(
         .executable(name: "net", targets: ["net"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "0.4.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
         .package(url: "https://github.com/johnsundell/files.git", from: "2.2.1"),
         .package(url: "https://github.com/SwiftDocOrg/GraphViz", from: "0.4.0"),
         // 0.0.3 is the first binding contract with rank constraints, stable edge ids,

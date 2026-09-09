@@ -48,7 +48,7 @@ public enum RandomFlowNetwork {
         if V == 2 {
             let cap = Double.random(in: minCapacity...maxCapacity)
             let cost = Double.random(in: minCost...maxCost)
-            _ = net.addEdge(u: 0, v: 1)
+            _ = net._addEdge(u: 0, v: 1)
             net[Edge(u: 0, v: 1)] = FlowEdge(capacity: cap, cost: cost)
             return net
         }
@@ -80,7 +80,7 @@ public enum RandomFlowNetwork {
             let u = path[i]
             let v = path[i + 1]
             if !net.isAdjacent(u: u, v: v) {
-                _ = net.addEdge(u: u, v: v)
+                _ = net._addEdge(u: u, v: v)
                 let cap = Double.random(in: minCapacity...maxCapacity)
                 let cost = Double.random(in: minCost...maxCost)
                 net[Edge(u: u, v: v)] = FlowEdge(capacity: cap, cost: cost)
@@ -93,7 +93,7 @@ public enum RandomFlowNetwork {
                 for nextL in (l + 1)..<layers.count {
                     for v in layers[nextL] {
                         if !net.isAdjacent(u: u, v: v) && Float.random(in: 0...1) < 0.45 {
-                            _ = net.addEdge(u: u, v: v)
+                            _ = net._addEdge(u: u, v: v)
                             let cap = Double.random(in: minCapacity...maxCapacity)
                             let cost = Double.random(in: minCost...maxCost)
                             net[Edge(u: u, v: v)] = FlowEdge(capacity: cap, cost: cost)

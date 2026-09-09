@@ -93,7 +93,7 @@ public enum Connectivity {
             for j in 1...r {
                 let target = (i + j) % n
                 if !graph.isAdjacent(u: i, v: target) {
-                    _ = graph.addEdge(u: i, v: target)
+                    _ = graph._addEdge(u: i, v: target)
                 }
             }
         }
@@ -104,18 +104,18 @@ public enum Connectivity {
             for i in 0..<half {
                 let target = i + half
                 if !graph.isAdjacent(u: i, v: target) {
-                    _ = graph.addEdge(u: i, v: target)
+                    _ = graph._addEdge(u: i, v: target)
                 }
             }
         } else if k % 2 != 0 && n % 2 != 0 {
             // Case 3: k is odd and n is odd, connect 0 to (n-1)/2 and (n+1)/2, and i to i + (n+1)/2 for 1 <= i < (n-1)/2
             let half = (n - 1) / 2
-            if !graph.isAdjacent(u: 0, v: half) { _ = graph.addEdge(u: 0, v: half) }
-            if !graph.isAdjacent(u: 0, v: half + 1) { _ = graph.addEdge(u: 0, v: half + 1) }
+            if !graph.isAdjacent(u: 0, v: half) { _ = graph._addEdge(u: 0, v: half) }
+            if !graph.isAdjacent(u: 0, v: half + 1) { _ = graph._addEdge(u: 0, v: half + 1) }
             for i in 1..<half {
                 let target = (i + half + 1) % n
                 if !graph.isAdjacent(u: i, v: target) {
-                    _ = graph.addEdge(u: i, v: target)
+                    _ = graph._addEdge(u: i, v: target)
                 }
             }
         }
@@ -125,7 +125,11 @@ public enum Connectivity {
 
     // MARK: - 2.2 Depth-First Search (Full Classification)
 
-    public static func dfs<V, W>(graph: AdjacentGraph<V, W>, startVertex: Int? = nil) -> DFSResult {
+    public static func dfs<V, W>(
+        graph: AdjacentGraph<V, W>,
+        startVertex: Int? = nil,
+        visitor: ((Int) -> Void)? = nil
+    ) -> DFSResult {
         let V_count = graph.vertexCount
         var discovery = Array(repeating: -1, count: V_count)
         var finish = Array(repeating: -1, count: V_count)
@@ -134,28 +138,46 @@ public enum Connectivity {
         var order: [Int] = []
         var timer = 0
 
-        func dfsVisit(_ u: Int) {
+        func dfsVisit(_ start: Int) {
             timer += 1
-            discovery[u] = timer
-            order.append(u)
+            discovery[start] = timer
+            order.append(start)
+            visitor?(start)
 
-            for v in graph.adjacent(of: u) {
-                let e = Edge(u: u, v: v)
-                if discovery[v] == -1 {
-                    edgeTypes[e] = .tree
-                    pred[v] = u
-                    dfsVisit(v)
-                } else if finish[v] == -1 {
-                    edgeTypes[e] = .back
-                } else if discovery[u] < discovery[v] {
-                    edgeTypes[e] = .forward
+            var stack: [(u: Int, neighbors: [Int], nextIndex: Int)] = [(start, graph.adjacent(of: start), 0)]
+
+            while !stack.isEmpty {
+                let currentIdx = stack.count - 1
+                let u = stack[currentIdx].u
+                let neighbors = stack[currentIdx].neighbors
+                let nextIdx = stack[currentIdx].nextIndex
+
+                if nextIdx < neighbors.count {
+                    let v = neighbors[nextIdx]
+                    stack[currentIdx].nextIndex += 1
+                    let e = Edge(u: u, v: v)
+
+                    if discovery[v] == -1 {
+                        edgeTypes[e] = .tree
+                        pred[v] = u
+                        timer += 1
+                        discovery[v] = timer
+                        order.append(v)
+                        visitor?(v)
+                        stack.append((v, graph.adjacent(of: v), 0))
+                    } else if finish[v] == -1 {
+                        edgeTypes[e] = .back
+                    } else if discovery[u] < discovery[v] {
+                        edgeTypes[e] = .forward
+                    } else {
+                        edgeTypes[e] = .cross
+                    }
                 } else {
-                    edgeTypes[e] = .cross
+                    stack.removeLast()
+                    timer += 1
+                    finish[u] = timer
                 }
             }
-
-            timer += 1
-            finish[u] = timer
         }
 
         if let s = startVertex, s >= 0, s < V_count {
@@ -176,9 +198,22 @@ public enum Connectivity {
         )
     }
 
+    /// DFS overload accepting a `Visitor` conforming instance.
+    public static func dfs<V, W, Vis: Visitor>(
+        graph: AdjacentGraph<V, W>,
+        startVertex: Int? = nil,
+        visitor: Vis
+    ) -> DFSResult where Vis.Vertex == Int {
+        dfs(graph: graph, startVertex: startVertex, visitor: { visitor.visit(vertex: $0) })
+    }
+
     // MARK: - 2.3 Breadth-First Search (Full Layered)
 
-    public static func bfs<V, W>(graph: AdjacentGraph<V, W>, startVertex: Int) -> BFSResult {
+    public static func bfs<V, W>(
+        graph: AdjacentGraph<V, W>,
+        startVertex: Int,
+        visitor: ((Int) -> Void)? = nil
+    ) -> BFSResult {
         let V_count = graph.vertexCount
         var distances = [Int: Int]()
         var predecessors = Array<Int?>(repeating: nil, count: V_count)
@@ -194,6 +229,7 @@ public enum Connectivity {
         visited.insert(startVertex)
         distances[startVertex] = 0
         order.append(startVertex)
+        visitor?(startVertex)
 
         while !currentLayer.isEmpty {
             layers.append(currentLayer)
@@ -206,6 +242,7 @@ public enum Connectivity {
                         distances[v] = distU + 1
                         predecessors[v] = u
                         order.append(v)
+                        visitor?(v)
                         nextLayer.append(v)
                     }
                 }
@@ -219,6 +256,15 @@ public enum Connectivity {
             layers: layers,
             visitorOrder: order
         )
+    }
+
+    /// BFS overload accepting a `Visitor` conforming instance.
+    public static func bfs<V, W, Vis: Visitor>(
+        graph: AdjacentGraph<V, W>,
+        startVertex: Int,
+        visitor: Vis
+    ) -> BFSResult where Vis.Vertex == Int {
+        bfs(graph: graph, startVertex: startVertex, visitor: { visitor.visit(vertex: $0) })
     }
 
     // MARK: - 2.4 Connected Graph Testing
@@ -361,7 +407,7 @@ public enum Connectivity {
                 let e = Edge(u: cU, v: cV)
                 if !dagEdgeSet.contains(e) {
                     dagEdgeSet.insert(e)
-                    _ = dag.addEdge(u: cU, v: cV)
+                    _ = dag._addEdge(u: cU, v: cV)
                 }
             }
         }
@@ -377,7 +423,6 @@ public enum Connectivity {
 
     /// Computes the minimal equivalent graph (transitive reduction) that preserves reachability with minimum edges.
     public static func minimalEquivalentGraph<V, W>(_ graph: AdjacentGraph<V, W>) -> AdjacentGraph<V, NoProperty> {
-        let n = graph.vertexCount
         var reduced = AdjacentGraph<V, NoProperty>(vertices: graph.vertices, kind: graph.kind)
 
         // For each edge (u, v), test if there is an alternative path from u to v without using direct edge (u, v)
@@ -406,7 +451,7 @@ public enum Connectivity {
             }
 
             if !hasAltPath {
-                _ = reduced.addEdge(u: edge.u, v: edge.v)
+                _ = reduced._addEdge(u: edge.u, v: edge.v)
             }
         }
 
@@ -512,7 +557,7 @@ public enum Connectivity {
             if ds.union(e.u, e.v) {
                 mstEdges.append(e)
                 totalWeight += w
-                _ = treeGraph.addEdge(u: e.u, v: e.v)
+                _ = treeGraph._addEdge(u: e.u, v: e.v)
                 treeGraph[e] = W(w)
                 if mstEdges.count == n - 1 { break }
             }

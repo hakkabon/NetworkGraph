@@ -21,10 +21,10 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
     func test2_2_DFSClassification() {
         // Triangle with chord: 0 -> 1, 1 -> 2, 2 -> 0, 0 -> 2
         var g = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .directed)
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
-        _ = g.addEdge(u: 2, v: 0)
-        _ = g.addEdge(u: 0, v: 2)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 2, v: 0)
+        _ = try! g.addEdge(u: 0, v: 2)
 
         let res = Connectivity.dfs(graph: g, startVertex: 0)
         XCTAssertEqual(res.edgeTypes[Edge(u: 0, v: 1)], .tree)
@@ -36,10 +36,10 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
     func test2_3_BFS() {
         // 0 -> 1 -> 3, 0 -> 2 -> 3
         var g = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2, 3], kind: .directed)
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 0, v: 2)
-        _ = g.addEdge(u: 1, v: 3)
-        _ = g.addEdge(u: 2, v: 3)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 0, v: 2)
+        _ = try! g.addEdge(u: 1, v: 3)
+        _ = try! g.addEdge(u: 2, v: 3)
 
         let bfs = Connectivity.bfs(graph: g, startVertex: 0)
         XCTAssertEqual(bfs.distances[0], 0)
@@ -52,10 +52,10 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
     func test2_4_2_5_ConnectedComponents() {
         var g = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<6), kind: .undirected)
         // Comp 1: 0-1-2
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
         // Comp 2: 3-4
-        _ = g.addEdge(u: 3, v: 4)
+        _ = try! g.addEdge(u: 3, v: 4)
         // Comp 3: 5 isolated
 
         XCTAssertFalse(Connectivity.isConnected(g))
@@ -69,12 +69,12 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
     func test2_6_CutNodesAndBridges() {
         // Bowtie graph: (0-1-2-0) and (2-3-4-2), vertex 2 is articulation point
         var g = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<5), kind: .undirected)
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
-        _ = g.addEdge(u: 2, v: 0)
-        _ = g.addEdge(u: 2, v: 3)
-        _ = g.addEdge(u: 3, v: 4)
-        _ = g.addEdge(u: 4, v: 2)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 2, v: 0)
+        _ = try! g.addEdge(u: 2, v: 3)
+        _ = try! g.addEdge(u: 3, v: 4)
+        _ = try! g.addEdge(u: 4, v: 2)
 
         let cuts = Connectivity.findCutNodesAndBridges(g)
         XCTAssertTrue(cuts.articulationPoints.contains(2))
@@ -83,7 +83,7 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
 
         // Add a pendant edge 4-5 (bridge)
         _ = g.addVertex(v: 5)
-        _ = g.addEdge(u: 4, v: 5)
+        _ = try! g.addEdge(u: 4, v: 5)
         let cutsWithBridge = Connectivity.findCutNodesAndBridges(g)
         XCTAssertTrue(cutsWithBridge.bridges.contains(Edge(u: 4, v: 5)))
         XCTAssertTrue(cutsWithBridge.articulationPoints.contains(4))
@@ -92,14 +92,14 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
     func test2_7_StronglyConnectedComponents() {
         var g = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<5), kind: .directed)
         // SCC 1: 0 -> 1 -> 2 -> 0
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
-        _ = g.addEdge(u: 2, v: 0)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 2, v: 0)
         // 2 -> 3
-        _ = g.addEdge(u: 2, v: 3)
+        _ = try! g.addEdge(u: 2, v: 3)
         // SCC 2: 3 -> 4 -> 3
-        _ = g.addEdge(u: 3, v: 4)
-        _ = g.addEdge(u: 4, v: 3)
+        _ = try! g.addEdge(u: 3, v: 4)
+        _ = try! g.addEdge(u: 4, v: 3)
 
         let scc = Connectivity.stronglyConnectedComponents(g)
         XCTAssertEqual(scc.components.count, 2)
@@ -110,9 +110,9 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
     func test2_8_MinimalEquivalentGraph() {
         // 0 -> 1 -> 2 and redundant 0 -> 2
         var g = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .directed)
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
-        _ = g.addEdge(u: 0, v: 2)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 0, v: 2)
 
         let meg = Connectivity.minimalEquivalentGraph(g)
         XCTAssertEqual(meg.edgeCount, 2)
@@ -124,9 +124,9 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
     func test2_9_GlobalMinCut() {
         var g = AdjacentGraph<Int, Double>(vertices: [0, 1, 2, 3], kind: .undirected)
         // Two clusters: (0, 1) and (2, 3) connected by a single weak edge (1, 2) of weight 1
-        _ = g.addEdge(u: 0, v: 1); g[Edge(u: 0, v: 1)] = 10.0
-        _ = g.addEdge(u: 2, v: 3); g[Edge(u: 2, v: 3)] = 10.0
-        _ = g.addEdge(u: 1, v: 2); g[Edge(u: 1, v: 2)] = 1.0
+        _ = try! g.addEdge(u: 0, v: 1); g[Edge(u: 0, v: 1)] = 10.0
+        _ = try! g.addEdge(u: 2, v: 3); g[Edge(u: 2, v: 3)] = 10.0
+        _ = try! g.addEdge(u: 1, v: 2); g[Edge(u: 1, v: 2)] = 1.0
 
         let (minCut, partition) = Connectivity.globalMinCut(graph: g)
         XCTAssertEqual(minCut, 1.0)
@@ -135,11 +135,11 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
 
     func test2_10_MinimumSpanningTree() {
         var g = AdjacentGraph<Int, Double>(vertices: Array(0..<4), kind: .undirected)
-        _ = g.addEdge(u: 0, v: 1); g[Edge(u: 0, v: 1)] = 1.0
-        _ = g.addEdge(u: 1, v: 2); g[Edge(u: 1, v: 2)] = 2.0
-        _ = g.addEdge(u: 2, v: 3); g[Edge(u: 2, v: 3)] = 3.0
-        _ = g.addEdge(u: 0, v: 3); g[Edge(u: 0, v: 3)] = 10.0
-        _ = g.addEdge(u: 0, v: 2); g[Edge(u: 0, v: 2)] = 5.0
+        _ = try! g.addEdge(u: 0, v: 1); g[Edge(u: 0, v: 1)] = 1.0
+        _ = try! g.addEdge(u: 1, v: 2); g[Edge(u: 1, v: 2)] = 2.0
+        _ = try! g.addEdge(u: 2, v: 3); g[Edge(u: 2, v: 3)] = 3.0
+        _ = try! g.addEdge(u: 0, v: 3); g[Edge(u: 0, v: 3)] = 10.0
+        _ = try! g.addEdge(u: 0, v: 2); g[Edge(u: 0, v: 2)] = 5.0
 
         let mst = Connectivity.minimumSpanningTree(graph: g)
         XCTAssertEqual(mst.edges.count, 3)
@@ -151,7 +151,7 @@ final class ConnectivityAlgorithmsTests: XCTestCase {
         var g = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<4), kind: .undirected)
         for i in 0..<4 {
             for j in (i + 1)..<4 {
-                _ = g.addEdge(u: i, v: j)
+                _ = try! g.addEdge(u: i, v: j)
             }
         }
 

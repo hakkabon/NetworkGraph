@@ -15,8 +15,9 @@ public func depthFirstSearch<G: IncidenceGraph & VertexListGraph, C: ReadWritePr
     C.Key    == G.Vertex,
     C.Value  == VertexColor
 {
+    guard graph.vertexCount > 0, startVertex >= 0, startVertex < graph.vertexCount else { return }
     for v in graph.adjacent(of: startVertex) {
-        switch colorMap.get(key: v) {
+        switch colorMap.get(key: v, default: .white) {
         case .white:
             colorMap.put(key: v, value: .gray)
             depthFirstSearch(graph: graph, startVertex: v, colorMap: &colorMap, visitor: visitor)
@@ -35,7 +36,7 @@ public func breadthFirstSearch<G: IncidenceGraph & VertexListGraph, C: ReadWrite
     C.Key    == G.Vertex,
     C.Value  == VertexColor
 {
-    guard graph.vertexCount > 0 else { return }
+    guard graph.vertexCount > 0, startVertex >= 0, startVertex < graph.vertexCount else { return }
     
     for vertex in graph.vertices {
         colorMap.put(key: vertex, value: .white)
@@ -49,7 +50,7 @@ public func breadthFirstSearch<G: IncidenceGraph & VertexListGraph, C: ReadWrite
     while !queue.isEmpty {
         let u = queue.removeFirst()
         for v in graph.adjacent(of: u) {
-            switch colorMap.get(key: v) {
+            switch colorMap.get(key: v, default: .white) {
             case .white:
                 colorMap.put(key: v, value: .gray)
                 visitor.visit(vertex: v)

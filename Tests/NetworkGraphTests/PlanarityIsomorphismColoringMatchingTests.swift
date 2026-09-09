@@ -17,7 +17,7 @@ final class PlanarityIsomorphismColoringMatchingTests: XCTestCase {
         var k4 = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<4), kind: .undirected)
         for i in 0..<4 {
             for j in (i + 1)..<4 {
-                _ = k4.addEdge(u: i, v: j)
+                _ = try! k4.addEdge(u: i, v: j)
             }
         }
         XCTAssertTrue(Planarity.isPlanar(k4).isPlanar)
@@ -26,7 +26,7 @@ final class PlanarityIsomorphismColoringMatchingTests: XCTestCase {
         var k5 = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<5), kind: .undirected)
         for i in 0..<5 {
             for j in (i + 1)..<5 {
-                _ = k5.addEdge(u: i, v: j)
+                _ = try! k5.addEdge(u: i, v: j)
             }
         }
         XCTAssertFalse(Planarity.isPlanar(k5).isPlanar)
@@ -50,13 +50,13 @@ final class PlanarityIsomorphismColoringMatchingTests: XCTestCase {
 
         // Test non-isomorphic pair (triangle vs line)
         var g1 = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .undirected)
-        _ = g1.addEdge(u: 0, v: 1)
-        _ = g1.addEdge(u: 1, v: 2)
-        _ = g1.addEdge(u: 2, v: 0)
+        _ = try! g1.addEdge(u: 0, v: 1)
+        _ = try! g1.addEdge(u: 1, v: 2)
+        _ = try! g1.addEdge(u: 2, v: 0)
 
         var g2 = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .undirected)
-        _ = g2.addEdge(u: 0, v: 1)
-        _ = g2.addEdge(u: 1, v: 2)
+        _ = try! g2.addEdge(u: 0, v: 1)
+        _ = try! g2.addEdge(u: 1, v: 2)
 
         XCTAssertFalse(GraphIsomorphism.areIsomorphic(g1, g2).isIsomorphic)
     }
@@ -64,15 +64,15 @@ final class PlanarityIsomorphismColoringMatchingTests: XCTestCase {
     func test5_1_TreeIsomorphismAHU() throws {
         // Tree 1: 0-1, 1-2, 1-3
         var t1 = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2, 3], kind: .undirected)
-        _ = t1.addEdge(u: 0, v: 1)
-        _ = t1.addEdge(u: 1, v: 2)
-        _ = t1.addEdge(u: 1, v: 3)
+        _ = try! t1.addEdge(u: 0, v: 1)
+        _ = try! t1.addEdge(u: 1, v: 2)
+        _ = try! t1.addEdge(u: 1, v: 3)
 
         // Tree 2 (permuted labels): 3-2, 2-0, 2-1 (root is 2 with 3 leaves)
         var t2 = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2, 3], kind: .undirected)
-        _ = t2.addEdge(u: 3, v: 2)
-        _ = t2.addEdge(u: 2, v: 0)
-        _ = t2.addEdge(u: 2, v: 1)
+        _ = try! t2.addEdge(u: 3, v: 2)
+        _ = try! t2.addEdge(u: 2, v: 0)
+        _ = try! t2.addEdge(u: 2, v: 1)
 
         XCTAssertTrue(GraphIsomorphism.areTreesIsomorphic(t1, t2))
     }
@@ -82,19 +82,19 @@ final class PlanarityIsomorphismColoringMatchingTests: XCTestCase {
     func test6_1_NodeColoring() {
         // Bipartite graph should have chromatic number 2
         var bip = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2, 3], kind: .undirected)
-        _ = bip.addEdge(u: 0, v: 2)
-        _ = bip.addEdge(u: 0, v: 3)
-        _ = bip.addEdge(u: 1, v: 2)
-        _ = bip.addEdge(u: 1, v: 3)
+        _ = try! bip.addEdge(u: 0, v: 2)
+        _ = try! bip.addEdge(u: 0, v: 3)
+        _ = try! bip.addEdge(u: 1, v: 2)
+        _ = try! bip.addEdge(u: 1, v: 3)
 
         let resBip = GraphColoring.color(bip)
         XCTAssertEqual(resBip.chromaticNumber, 2)
 
         // Triangle should have chromatic number 3
         var tri = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .undirected)
-        _ = tri.addEdge(u: 0, v: 1)
-        _ = tri.addEdge(u: 1, v: 2)
-        _ = tri.addEdge(u: 2, v: 0)
+        _ = try! tri.addEdge(u: 0, v: 1)
+        _ = try! tri.addEdge(u: 1, v: 2)
+        _ = try! tri.addEdge(u: 2, v: 0)
 
         let resTri = GraphColoring.color(tri)
         XCTAssertEqual(resTri.chromaticNumber, 3)
@@ -109,8 +109,8 @@ final class PlanarityIsomorphismColoringMatchingTests: XCTestCase {
         // For tree on n vertices: P(T_n, k) = k * (k - 1)^(n - 1)
         // For n = 3: P(T_3, k) = k * (k - 1)^2 = k^3 - 2k^2 + k
         var tree = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .undirected)
-        _ = tree.addEdge(u: 0, v: 1)
-        _ = tree.addEdge(u: 1, v: 2)
+        _ = try! tree.addEdge(u: 0, v: 1)
+        _ = try! tree.addEdge(u: 1, v: 2)
 
         let poly = GraphColoring.chromaticPolynomial(tree)
         // Evaluate at k = 3 -> 3 * 2^2 = 12
@@ -128,11 +128,11 @@ final class PlanarityIsomorphismColoringMatchingTests: XCTestCase {
         // V1 = {0, 1, 2}, V2 = {3, 4, 5}
         // Edges: 0-3, 0-4, 1-3, 2-4, 2-5
         var g = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<6), kind: .undirected)
-        _ = g.addEdge(u: 0, v: 3)
-        _ = g.addEdge(u: 0, v: 4)
-        _ = g.addEdge(u: 1, v: 3)
-        _ = g.addEdge(u: 2, v: 4)
-        _ = g.addEdge(u: 2, v: 5)
+        _ = try! g.addEdge(u: 0, v: 3)
+        _ = try! g.addEdge(u: 0, v: 4)
+        _ = try! g.addEdge(u: 1, v: 3)
+        _ = try! g.addEdge(u: 2, v: 4)
+        _ = try! g.addEdge(u: 2, v: 5)
 
         let matching = GraphMatching.hopcroftKarp(graph: g, partitionV1: [0, 1, 2])
         XCTAssertEqual(matching.cardinality, 3)
@@ -142,10 +142,10 @@ final class PlanarityIsomorphismColoringMatchingTests: XCTestCase {
     func test7_1_EdmondsBlossomGeneralMatching() {
         // Odd cycle with a stem (classic blossom): 0-1, 1-2, 2-0 (triangle) + 0-3
         var g = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2, 3], kind: .undirected)
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
-        _ = g.addEdge(u: 2, v: 0)
-        _ = g.addEdge(u: 0, v: 3)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 2, v: 0)
+        _ = try! g.addEdge(u: 0, v: 3)
 
         let match = GraphMatching.edmondsBlossom(g)
         XCTAssertEqual(match.cardinality, 2)

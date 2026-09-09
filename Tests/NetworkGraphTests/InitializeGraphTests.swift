@@ -7,23 +7,23 @@ final class InitializeGraphTests: XCTestCase {
         var graph = AdjacentGraph<Int, NoProperty>(vertices: [0,1,2])
         XCTAssertEqual(graph.kind, GraphType.directed, "expected a directed graph")
         XCTAssertEqual(graph.vertexCount, 3, "expected vertex count = 3");
-        _ = graph.addEdge(u:0, v: 1)
-        _ = graph.addEdge(u:0, v: 2)
+        _ = try! graph.addEdge(u:0, v: 1)
+        _ = try! graph.addEdge(u:0, v: 2)
         XCTAssertEqual(graph.edgeCount, 2, "expected edge count = 2");
         let i = graph[1]
         XCTAssertEqual(i, 1, "expected result vetrex[1] = 1");
         graph[1] = 10
         XCTAssertEqual(graph[1], 10, "expected result vetrex[1] = 10");
-        _ = graph.addEdge(u:1, v: 2)
+        _ = try! graph.addEdge(u:1, v: 2)
         XCTAssertEqual(graph.edgeCount, 3, "expected edge count = 3");
     }
 
     func testTwo() throws {
         var graph = AdjacentGraph<Int, String>(vertices: [0,1,2,3])
         XCTAssertEqual(graph.kind, GraphType.directed, "expected a directed graph")
-        _ = graph.addEdge(u:0, v:1)
-        _ = graph.addEdge(u:0, v:2)
-        _ = graph.addEdge(u:1, v:2)
+        _ = try! graph.addEdge(u:0, v:1)
+        _ = try! graph.addEdge(u:0, v:2)
+        _ = try! graph.addEdge(u:1, v:2)
         XCTAssertEqual(graph.vertexCount, 4, "expected vertex count = 4");
         let i = graph[3]
         XCTAssertEqual(i, 3, "expected result vetrex[1] = 3");
@@ -33,7 +33,7 @@ final class InitializeGraphTests: XCTestCase {
         XCTAssertEqual(graph[Edge(u:0,v:1)], "One", "expected edge value = 'One'");
         _ = graph[Edge(u:0,v:2)] = "Two"
         XCTAssertEqual(graph[Edge(u:0,v:2)], "Two", "expected edge value = 'Two'");
-        _ = graph.addEdge(u:1, v: 2)
+        _ = try! graph.addEdge(u:1, v: 2)
         XCTAssertEqual(graph.edgeCount, 4, "expected edge count = 4");
     }
 

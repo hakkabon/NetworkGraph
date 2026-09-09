@@ -60,8 +60,8 @@ final class PropertyMapTests: XCTestCase {
                 LabeledVertex(label: "Marseille")
             ]
         )
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
         g.setEdgeProperty(WeightedEdge(weight: 465), for: Edge(u: 0, v: 1))
         g.setEdgeProperty(WeightedEdge(weight: 314), for: Edge(u: 1, v: 2))
 

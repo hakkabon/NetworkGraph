@@ -24,7 +24,7 @@ public enum StarGraph<V: Hashable & Codable> {
 
         guard leafs.count > 0 else { return g }
         for i in 1...leafs.count {
-            _ = g.addEdge(u: 0, v: i)
+            _ = g._addEdge(u: 0, v: i)
         }
         return g
     }
@@ -44,7 +44,7 @@ public enum CompleteGraph<V: Hashable & Codable> {
 
         for u in 0..<vs.count {
             for v in 0..<u {
-                _ = g.addEdge(u: u, v: v)
+                _ = g._addEdge(u: u, v: v)
             }
         }
         return g
@@ -73,7 +73,7 @@ public enum PathGraph<V: Hashable & Codable> {
         }
 
         for i in 0 ... path.count-2 {
-            _ = g.addEdge(u: i, v: i+1)
+            _ = g._addEdge(u: i, v: i+1)
         }
 
         return g
@@ -103,9 +103,9 @@ public enum CycleGraph<V: Hashable & Codable> {
         }
 
         for i in 0 ... cycle.count-2 {
-            _ = g.addEdge(u: i, v: i+1)
+            _ = g._addEdge(u: i, v: i+1)
         }
-        _ = g.addEdge(u: cycle.count-1, v: 0)
+        _ = g._addEdge(u: cycle.count-1, v: 0)
         
         return g
     }

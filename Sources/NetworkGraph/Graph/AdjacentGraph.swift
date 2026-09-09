@@ -18,7 +18,7 @@ import Foundation
 ///
 /// ```swift
 /// var g = AdjacentGraph<String, WeightedEdge>(vertices: ["A","B","C"])
-/// _ = g.addEdge(u: 0, v: 1)
+/// _ = try g.addEdge(u: 0, v: 1)
 /// g[Edge(u: 0, v: 1)] = WeightedEdge(weight: 3.5)
 /// g[0] = "Alpha"
 /// ```
@@ -37,11 +37,20 @@ public struct AdjacentGraph<V: Hashable & Codable & Sendable, W: Hashable & Coda
     /// Vertex value array (index == vertex identifier).
     public var vertex: [V] = []
 
+    /// Fast O(1) reverse lookup: vertex value to its internal index.
+    private var vertexIndex: [V: Int] = [:]
+
     /// Outgoing adjacency lists.
     private var adjacent: [[Int]] = []
 
+    /// Outgoing adjacency sets for O(1) `isAdjacent` checks.
+    private var adjacentSet: [Set<Int>] = []
+
     /// Incoming adjacency lists (kept in sync for bidirectional queries).
     private var incoming: [[Int]] = []
+
+    /// Cached total edge count for O(1) `edgeCount`.
+    private var _edgeCount: Int = 0
 
     /// Per-edge property store, keyed by `Edge`.
     public var edgeProperties: [Edge: W] = [:]
@@ -63,27 +72,36 @@ public struct AdjacentGraph<V: Hashable & Codable & Sendable, W: Hashable & Coda
 
     /// Creates a graph from a vertex array and a complete adjacency-list
     /// (the adjacency list index matches the vertex array index).
-    public init(vertices: [V], adacency: [[Int]], kind: GraphType = .directed) {
-        guard vertices.count == adacency.count else { fatalError("vertices / adjacency count mismatch") }
+    public init(vertices: [V], adjacency: [[Int]], kind: GraphType = .directed) {
+        guard vertices.count == adjacency.count else { fatalError("vertices / adjacency count mismatch") }
         graphType = kind
         for (i, v) in vertices.enumerated() {
             self.vertex.append(v)
-            self.adjacent.append(adacency[i])
+            self.vertexIndex[v] = i
+            self.adjacent.append(adjacency[i])
+            self.adjacentSet.append(Set(adjacency[i]))
             self.incoming.append([])
         }
         // Rebuild incoming lists
         for u in 0..<vertex.count {
             for v in adjacent[u] { incoming[v].append(u) }
         }
-        assert(edgeCount == adacency.joined().count)
+        self._edgeCount = adjacency.joined().count
+        assert(edgeCount == adjacency.joined().count)
         assert(vertexCount == vertices.count)
+    }
+
+    /// Deprecated typo version of `init(vertices:adjacency:kind:)`.
+    @available(*, deprecated, renamed: "init(vertices:adjacency:kind:)")
+    public init(vertices: [V], adacency: [[Int]], kind: GraphType = .directed) {
+        self.init(vertices: vertices, adjacency: adacency, kind: kind)
     }
 
     /// Creates a graph from a vertex array and an `[Edge]` list.
     public init(vertices: [V], edges: [Edge], kind: GraphType = .directed) {
         graphType = kind
         for v in vertices { _ = addVertex(v: v) }
-        for e in edges { _ = addEdge(u: e.u, v: e.v) }
+        for e in edges { _addEdge(u: e.u, v: e.v) }
         assert(edgeCount == edges.count)
         assert(vertexCount == vertices.count)
     }
@@ -92,7 +110,7 @@ public struct AdjacentGraph<V: Hashable & Codable & Sendable, W: Hashable & Coda
     public init(vertices: [V], edges: [(Int, Int)], kind: GraphType = .directed) {
         graphType = kind
         for v in vertices { _ = addVertex(v: v) }
-        for (u, v) in edges { _ = addEdge(u: u, v: v) }
+        for (u, v) in edges { _addEdge(u: u, v: v) }
         assert(vertexCount == vertices.count)
     }
 
@@ -107,11 +125,27 @@ public struct AdjacentGraph<V: Hashable & Codable & Sendable, W: Hashable & Coda
         for (us, vs) in edges {
             let u: V = convert(string: us, to: V.self)
             let v: V = convert(string: vs, to: V.self)
-            if indexMap[u] == nil { indexMap[u] = counter(); vertex.append(u); adjacent.append([]); incoming.append([]) }
-            if indexMap[v] == nil { indexMap[v] = counter(); vertex.append(v); adjacent.append([]); incoming.append([]) }
+            if indexMap[u] == nil {
+                let idx = counter()
+                indexMap[u] = idx
+                vertex.append(u)
+                vertexIndex[u] = idx
+                adjacent.append([])
+                adjacentSet.append([])
+                incoming.append([])
+            }
+            if indexMap[v] == nil {
+                let idx = counter()
+                indexMap[v] = idx
+                vertex.append(v)
+                vertexIndex[v] = idx
+                adjacent.append([])
+                adjacentSet.append([])
+                incoming.append([])
+            }
             rawEdges.append((indexMap[u]!, indexMap[v]!))
         }
-        for (u, v) in rawEdges { _ = addEdge(u: u, v: v) }
+        for (u, v) in rawEdges { _addEdge(u: u, v: v) }
         assert(vertexCount == indexMap.count)
         assert(vertexCount == adjacent.count)
     }
@@ -126,15 +160,28 @@ public struct AdjacentGraph<V: Hashable & Codable & Sendable, W: Hashable & Coda
             let u: V = convert(string: us, to: V.self)
             let v: V = convert(string: vs, to: V.self)
             let w: W = convert(string: ws, to: W.self)
-            if indexMap[u] == nil { indexMap[u] = counter(); vertex.append(u); adjacent.append([]); incoming.append([]) }
-            if indexMap[v] == nil { indexMap[v] = counter(); vertex.append(v); adjacent.append([]); incoming.append([]) }
+            if indexMap[u] == nil {
+                let idx = counter()
+                indexMap[u] = idx
+                vertex.append(u)
+                vertexIndex[u] = idx
+                adjacent.append([])
+                adjacentSet.append([])
+                incoming.append([])
+            }
+            if indexMap[v] == nil {
+                let idx = counter()
+                indexMap[v] = idx
+                vertex.append(v)
+                vertexIndex[v] = idx
+                adjacent.append([])
+                adjacentSet.append([])
+                incoming.append([])
+            }
             let i = indexMap[u]!, j = indexMap[v]!
-            adjacent[i].append(j)
-            incoming[j].append(i)
+            _addEdge(u: i, v: j)
             edgeProperties[Edge(u: i, v: j)] = w
             if graphType == .undirected && i != j {
-                adjacent[j].append(i)
-                incoming[i].append(j)
                 edgeProperties[Edge(u: j, v: i)] = w
             }
         }
@@ -156,7 +203,12 @@ extension AdjacentGraph: PropertyGraph {
     /// Read/write the vertex value at `i`.
     public subscript(i: Int) -> V {
         get { vertex[i] }
-        set { vertex[i] = newValue }
+        set {
+            let old = vertex[i]
+            vertexIndex.removeValue(forKey: old)
+            vertex[i] = newValue
+            vertexIndex[newValue] = i
+        }
     }
 
     /// Read/write the edge property for edge `e` (force-unwraps; edge must exist).
@@ -190,7 +242,7 @@ extension AdjacentGraph: VertexListGraph {
     public var vertexCount: Int { vertex.count }
 
     public func index(of vertex: V) -> Int? {
-        self.vertex.firstIndex(where: { $0 == vertex })
+        vertexIndex[vertex]
     }
 }
 
@@ -198,7 +250,7 @@ extension AdjacentGraph: VertexListGraph {
 
 extension AdjacentGraph: EdgeListGraph {
 
-    public var edgeCount: Int { adjacent.joined().count }
+    public var edgeCount: Int { _edgeCount }
 
     /// All edges in the graph as `Edge` values.
     public var edges: [Edge] {
@@ -219,8 +271,8 @@ extension AdjacentGraph: IncidenceGraph {
     public func adjacent(of vertex: Int) -> [Int] { adjacent[vertex] }
 
     public func isAdjacent(u: Int, v: Int) -> Bool {
-        guard u >= 0, u < adjacent.count, v >= 0, v < adjacent.count else { return false }
-        return adjacent[u].contains(v)
+        guard u >= 0, u < adjacentSet.count, v >= 0, v < adjacentSet.count else { return false }
+        return adjacentSet[u].contains(v)
     }
 
     public func adjacentEdges(of v: Int) -> [(Int, Int)] {
@@ -254,10 +306,13 @@ extension AdjacentGraph: MutableGraph {
 
     @discardableResult
     public mutating func addVertex(v: V) -> Int {
+        let idx = vertex.count
         vertex.append(v)
+        vertexIndex[v] = idx
         adjacent.append([])
+        adjacentSet.append([])
         incoming.append([])
-        return vertex.count - 1
+        return idx
     }
 
     /// Removes vertex `v`, its stored value, all outgoing/incoming edges,
@@ -270,21 +325,35 @@ extension AdjacentGraph: MutableGraph {
         for j in outgoing {
             if let pos = incoming[j].firstIndex(of: idx) { incoming[j].remove(at: pos) }
             edgeProperties.removeValue(forKey: Edge(u: idx, v: j))
+            edgeProperties.removeValue(forKey: Edge(u: j, v: idx))
+            _edgeCount -= 1
         }
         for i in incoming[idx] {
-            if let pos = adjacent[i].firstIndex(of: idx) { adjacent[i].remove(at: pos) }
+            if let pos = adjacent[i].firstIndex(of: idx) {
+                adjacent[i].remove(at: pos)
+                adjacentSet[i].remove(idx)
+                _edgeCount -= 1
+            }
             edgeProperties.removeValue(forKey: Edge(u: i, v: idx))
+            edgeProperties.removeValue(forKey: Edge(u: idx, v: i))
         }
 
         vertex.remove(at: idx)
         adjacent.remove(at: idx)
+        adjacentSet.remove(at: idx)
         incoming.remove(at: idx)
 
         // Re-map all index references > idx downward by 1
         func shift(_ i: Int) -> Int { i > idx ? i - 1 : i }
 
         adjacent  = adjacent.map  { $0.map(shift) }
+        adjacentSet = adjacentSet.map { Set($0.map(shift)) }
         incoming  = incoming.map  { $0.map(shift) }
+
+        vertexIndex = [:]
+        for (i, vert) in vertex.enumerated() {
+            vertexIndex[vert] = i
+        }
 
         let oldProps = edgeProperties
         edgeProperties = [:]
@@ -295,14 +364,28 @@ extension AdjacentGraph: MutableGraph {
     }
 
     @discardableResult
-    public mutating func addEdge(u: Int, v: Int) -> Bool {
-        guard u >= 0, u < adjacent.count else { fatalError("invalid source vertex \(u)") }
-        guard v >= 0, v < adjacent.count else { fatalError("invalid target vertex \(v)") }
+    public mutating func addEdge(u: Int, v: Int) throws -> Bool {
+        guard u >= 0, u < adjacent.count else {
+            throw NetworkGraphError.invalidVertex(index: u, graphSize: adjacent.count)
+        }
+        guard v >= 0, v < adjacent.count else {
+            throw NetworkGraphError.invalidVertex(index: v, graphSize: adjacent.count)
+        }
+        return _addEdge(u: u, v: v)
+    }
+
+    /// Fast path for adding edges when vertex indices are known to be valid.
+    @discardableResult
+    public mutating func _addEdge(u: Int, v: Int) -> Bool {
         adjacent[u].append(v)
+        adjacentSet[u].insert(v)
         incoming[v].append(u)
+        _edgeCount += 1
         if graphType == .undirected && u != v {
             adjacent[v].append(u)
+            adjacentSet[v].insert(u)
             incoming[u].append(v)
+            _edgeCount += 1
         }
         return true
     }
@@ -310,13 +393,21 @@ extension AdjacentGraph: MutableGraph {
     public mutating func removeEdge(u: Int, v: Int) {
         guard u >= 0, u < adjacent.count else { return }
         guard v >= 0, v < adjacent.count else { return }
-        if let pos = adjacent[u].firstIndex(of: v) { adjacent[u].remove(at: pos) }
+        if let pos = adjacent[u].firstIndex(of: v) {
+            adjacent[u].remove(at: pos)
+            _edgeCount -= 1
+        }
+        adjacentSet[u].remove(v)
         if let pos = incoming[v].firstIndex(of: u) { incoming[v].remove(at: pos) }
         edgeProperties.removeValue(forKey: Edge(u: u, v: v))
+        edgeProperties.removeValue(forKey: Edge(u: v, v: u))
         if graphType == .undirected && u != v {
-            if let pos = adjacent[v].firstIndex(of: u) { adjacent[v].remove(at: pos) }
+            if let pos = adjacent[v].firstIndex(of: u) {
+                adjacent[v].remove(at: pos)
+                _edgeCount -= 1
+            }
+            adjacentSet[v].remove(u)
             if let pos = incoming[u].firstIndex(of: v) { incoming[u].remove(at: pos) }
-            edgeProperties.removeValue(forKey: Edge(u: v, v: u))
         }
     }
 
@@ -325,8 +416,18 @@ extension AdjacentGraph: MutableGraph {
         for j in adjacent[v] {
             if let pos = incoming[j].firstIndex(of: v) { incoming[j].remove(at: pos) }
             edgeProperties.removeValue(forKey: Edge(u: v, v: j))
+            edgeProperties.removeValue(forKey: Edge(u: j, v: v))
+            _edgeCount -= 1
+            if graphType == .undirected && v != j {
+                if let pos = adjacent[j].firstIndex(of: v) {
+                    adjacent[j].remove(at: pos)
+                    _edgeCount -= 1
+                }
+                adjacentSet[j].remove(v)
+            }
         }
         adjacent[v] = []
+        adjacentSet[v] = []
     }
 }
 
@@ -341,7 +442,10 @@ extension AdjacentGraph {
 
     /// Updates the vertex value at `index`.
     public mutating func setVertexValue(_ value: V, at index: Int) {
+        let old = vertex[index]
+        vertexIndex.removeValue(forKey: old)
         vertex[index] = value
+        vertexIndex[value] = index
     }
 
     /// Returns the edge property for `edge`, or `nil` if none is stored.
@@ -357,6 +461,10 @@ extension AdjacentGraph {
     /// Applies `transform` to every vertex value in place.
     public mutating func mapVertices(_ transform: (V) -> V) {
         vertex = vertex.map(transform)
+        vertexIndex = [:]
+        for (i, v) in vertex.enumerated() {
+            vertexIndex[v] = i
+        }
     }
 
     /// Applies `transform` to every edge property value in place.
@@ -399,9 +507,12 @@ extension AdjacentGraph: UnweightedGraphImport where V == Int {
     public mutating func initialize(unweightedGraph content: [[String]]) {
         guard content.count > 3 else { return }
         guard let nVertices = Int(content[0].joined()) else { fatalError("bad vertex count") }
-        self.vertex   = Array(0..<nVertices)
-        self.adjacent = Array(repeating: [], count: nVertices)
-        self.incoming = Array(repeating: [], count: nVertices)
+        self.vertex      = Array(0..<nVertices)
+        self.vertexIndex = Dictionary(uniqueKeysWithValues: (0..<nVertices).map { ($0, $0) })
+        self.adjacent    = Array(repeating: [], count: nVertices)
+        self.adjacentSet = Array(repeating: [], count: nVertices)
+        self.incoming    = Array(repeating: [], count: nVertices)
+        self._edgeCount  = 0
         guard Int(content[1].joined()) != nil else { fatalError("bad edge count") }
         let data: [(String, String)] = content.dropFirst(2).map { $0.splat2() }
         for (s, t) in data {
@@ -409,8 +520,7 @@ extension AdjacentGraph: UnweightedGraphImport where V == Int {
             let v = convert(string: t, to: V.self)
             assert(u >= 0 && u < nVertices)
             assert(v >= 0 && v < nVertices)
-            adjacent[u].append(v)
-            incoming[v].append(u)
+            _addEdge(u: u, v: v)
         }
         assert(vertexCount == nVertices)
     }
@@ -420,9 +530,12 @@ extension AdjacentGraph: WeightedGraphImport where V == Int, W: Numeric {
     public mutating func initializeGraph(weightedGraph content: [[String]]) {
         guard content.count > 3 else { return }
         guard let nVertices = Int(content[0].joined()) else { fatalError("bad vertex count") }
-        self.vertex   = Array(0..<nVertices)
-        self.adjacent = Array(repeating: [], count: nVertices)
-        self.incoming = Array(repeating: [], count: nVertices)
+        self.vertex      = Array(0..<nVertices)
+        self.vertexIndex = Dictionary(uniqueKeysWithValues: (0..<nVertices).map { ($0, $0) })
+        self.adjacent    = Array(repeating: [], count: nVertices)
+        self.adjacentSet = Array(repeating: [], count: nVertices)
+        self.incoming    = Array(repeating: [], count: nVertices)
+        self._edgeCount  = 0
         guard Int(content[1].joined()) != nil else { fatalError("bad edge count") }
         let data: [(String, String, String)] = content.dropFirst(2).map { $0.splat3() }
         for (r, s, t) in data {
@@ -431,8 +544,7 @@ extension AdjacentGraph: WeightedGraphImport where V == Int, W: Numeric {
             let w: W = convert(string: t, to: W.self)
             assert(u >= 0 && u < nVertices)
             assert(v >= 0 && v < nVertices)
-            adjacent[u].append(v)
-            incoming[v].append(u)
+            _addEdge(u: u, v: v)
             edgeProperties[Edge(u: u, v: v)] = w
         }
         assert(vertexCount == nVertices)

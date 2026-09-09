@@ -18,12 +18,8 @@ import Foundation
 public func convert<T>(string s: String, to: T.Type) -> T {
     if T.self == String.self {
         return s as! T
-    } else if T.self == Int.self {
-        return Int(s) as! T
-    } else if T.self == Float.self {
-        return Float(s) as! T
-    } else if T.self == Double.self {
-        return Double(s) as! T
+    } else if let type = T.self as? LosslessStringConvertible.Type, let val = type.init(s) as? T {
+        return val
     }
-    fatalError()
+    fatalError("Cannot convert string '\(s)' to unsupported type \(T.self). Type must conform to LosslessStringConvertible.")
 }

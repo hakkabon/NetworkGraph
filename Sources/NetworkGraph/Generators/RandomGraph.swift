@@ -51,7 +51,7 @@ public enum RandomGraph {
         var g = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<V), kind: kind)
         for i in 0..<E {
             let e = allPossibleEdges[i]
-            _ = g.addEdge(u: e.u, v: e.v)
+            _ = g._addEdge(u: e.u, v: e.v)
         }
         return g
     }
@@ -76,7 +76,7 @@ public enum RandomGraph {
             for u in 0..<V {
                 for v in 0..<V where u != v {
                     if Float.random(in: 0...1) < p {
-                        _ = g.addEdge(u: u, v: v)
+                        _ = g._addEdge(u: u, v: v)
                     }
                 }
             }
@@ -84,7 +84,7 @@ public enum RandomGraph {
             for u in 0..<V {
                 for v in (u + 1)..<V {
                     if Float.random(in: 0...1) < p {
-                        _ = g.addEdge(u: u, v: v)
+                        _ = g._addEdge(u: u, v: v)
                     }
                 }
             }
@@ -128,7 +128,7 @@ public enum BipartiteRandomGraph {
         var g = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<(V1 + V2)), kind: kind)
         for k in 0..<E {
             let e = allPossibleEdges[k]
-            _ = g.addEdge(u: e.u, v: e.v)
+            _ = g._addEdge(u: e.u, v: e.v)
         }
         return g
     }
@@ -146,7 +146,7 @@ public enum BipartiteRandomGraph {
         for i in 0..<V1 {
             for j in 0..<V2 {
                 if Float.random(in: 0...1) < p {
-                    _ = g.addEdge(u: i, v: V1 + j)
+                    _ = g._addEdge(u: i, v: V1 + j)
                 }
             }
         }

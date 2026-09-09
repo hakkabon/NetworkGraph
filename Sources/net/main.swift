@@ -43,7 +43,7 @@ struct RandomCmd: ParsableCommand {
             let v2 = vertices - v1
             let unweighted = try BipartiteRandomGraph.build(partition: v1, partition: v2, edge: Swift.min(edges, v1 * v2))
             for e in unweighted.edges {
-                _ = graph.addEdge(u: e.u, v: e.v)
+                _ = try graph.addEdge(u: e.u, v: e.v)
                 graph[e] = Double.random(in: 1.0...20.0).rounded()
             }
         case "regular":
@@ -51,25 +51,25 @@ struct RandomCmd: ParsableCommand {
             let safeDeg = (vertices * deg) % 2 == 0 ? deg : deg - 1
             let unweighted = try RandomRegularGraph.build(vertex: vertices, degree: Swift.max(2, safeDeg))
             for e in unweighted.edges {
-                _ = graph.addEdge(u: e.u, v: e.v)
+                _ = try graph.addEdge(u: e.u, v: e.v)
                 graph[e] = Double.random(in: 1.0...20.0).rounded()
             }
         case "tree":
             let unweighted = try RandomTree.labeledTree(vertex: vertices)
             for e in unweighted.edges {
-                _ = graph.addEdge(u: e.u, v: e.v)
+                _ = try graph.addEdge(u: e.u, v: e.v)
                 graph[e] = Double.random(in: 1.0...20.0).rounded()
             }
         case "hamilton":
             let unweighted = try RandomConnectedGraph.hamiltonGraph(vertex: vertices, edge: Swift.max(vertices, edges))
             for e in unweighted.edges {
-                _ = graph.addEdge(u: e.u, v: e.v)
+                _ = try graph.addEdge(u: e.u, v: e.v)
                 graph[e] = Double.random(in: 1.0...20.0).rounded()
             }
         default:
             let unweighted = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
             for e in unweighted.edges {
-                _ = graph.addEdge(u: e.u, v: e.v)
+                _ = try graph.addEdge(u: e.u, v: e.v)
                 graph[e] = Double.random(in: 1.0...20.0).rounded()
             }
         }
@@ -84,6 +84,20 @@ struct RandomCmd: ParsableCommand {
             try svg.write(toFile: outPath, atomically: true, encoding: .utf8)
             print("🖼️ Exported visualization with edge costs to \(outPath)")
         }
+    }
+}
+
+// MARK: - Graphviz Helper
+
+private func emitGraphviz(dot: String, to path: String) throws {
+    let dotPath = path.hasSuffix(".dot") ? path : path + ".dot"
+    try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
+    print("📐 DOT source written to \(dotPath)")
+    do {
+        try GraphvizExporter.render(dot: dot, to: path, open: true)
+        print("🖼️ Graphviz render opened: \(path)")
+    } catch GraphvizExporterError.dotNotFound {
+        print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
     }
 }
 
@@ -102,7 +116,7 @@ struct MstCmd: ParsableCommand {
         var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
         for e in baseGraph.edges {
             let w = Double.random(in: 1.0...15.0).rounded()
-            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            _ = try weightedGraph.addEdge(u: e.u, v: e.v)
             weightedGraph[e] = w
         }
 
@@ -127,15 +141,7 @@ struct MstCmd: ParsableCommand {
                 title: "MST (Weight: \(mst.totalWeight))",
                 highlightEdges: Set(mst.edges)
             )
-            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
-            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
-            print("📐 DOT source written to \(dotPath)")
-            do {
-                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
-                print("🖼️ Graphviz render opened: \(gvPath)")
-            } catch GraphvizExporterError.dotNotFound {
-                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
-            }
+            try emitGraphviz(dot: dot, to: gvPath)
         }
     }
 }
@@ -153,7 +159,7 @@ struct TspCmd: ParsableCommand {
         var g = AdjacentGraph<Int, Double>(vertices: Array(0..<cities), kind: .undirected)
         for i in 0..<cities {
             for j in (i + 1)..<cities {
-                _ = g.addEdge(u: i, v: j)
+                _ = try g.addEdge(u: i, v: j)
                 g[Edge(u: i, v: j)] = Double.random(in: 5.0...30.0).rounded()
             }
         }
@@ -179,17 +185,7 @@ struct TspCmd: ParsableCommand {
                 title: "TSP Tour (Cost: \(tsp.totalCost))",
                 tour: tsp.tour
             )
-            // Write .dot file alongside the rendered output
-            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
-            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
-            print("📐 DOT source written to \(dotPath)")
-            do {
-                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
-                print("🖼️ Graphviz render opened: \(gvPath)")
-            } catch GraphvizExporterError.dotNotFound {
-                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
-                print("   DOT source saved to \(dotPath) — render manually with: dot -Tpdf \(dotPath) -o tour.pdf")
-            }
+            try emitGraphviz(dot: dot, to: gvPath)
         }
     }
 }
@@ -208,7 +204,7 @@ struct EulerCmd: ParsableCommand {
         let baseGraph = try RandomRegularGraph.build(vertex: vertices, degree: 4)
         var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
         for e in baseGraph.edges {
-            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            _ = try weightedGraph.addEdge(u: e.u, v: e.v)
             weightedGraph[e] = Double.random(in: 1.0...10.0).rounded()
         }
 
@@ -237,15 +233,7 @@ struct EulerCmd: ParsableCommand {
                 title: "Eulerian \(euler.isCircuit ? "Circuit" : "Trail")",
                 tour: euler.vertices
             )
-            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
-            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
-            print("📐 DOT source written to \(dotPath)")
-            do {
-                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
-                print("🖼️ Graphviz render opened: \(gvPath)")
-            } catch GraphvizExporterError.dotNotFound {
-                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
-            }
+            try emitGraphviz(dot: dot, to: gvPath)
         }
     }
 }
@@ -264,7 +252,7 @@ struct PostmanCmd: ParsableCommand {
         let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
         var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
         for e in baseGraph.edges {
-            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            _ = try weightedGraph.addEdge(u: e.u, v: e.v)
             weightedGraph[e] = Double.random(in: 2.0...15.0).rounded()
         }
 
@@ -300,15 +288,7 @@ struct PostmanCmd: ParsableCommand {
                 title: "Chinese Postman Tour (Cost: \(totalCost))",
                 tour: postman.vertices
             )
-            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
-            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
-            print("📐 DOT source written to \(dotPath)")
-            do {
-                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
-                print("🖼️ Graphviz render opened: \(gvPath)")
-            } catch GraphvizExporterError.dotNotFound {
-                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
-            }
+            try emitGraphviz(dot: dot, to: gvPath)
         }
     }
 }
@@ -329,7 +309,7 @@ struct ShortestPathCmd: ParsableCommand {
         let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
         var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
         for e in baseGraph.edges {
-            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            _ = try weightedGraph.addEdge(u: e.u, v: e.v)
             weightedGraph[e] = Double.random(in: 1.0...20.0).rounded()
         }
 
@@ -359,15 +339,7 @@ struct ShortestPathCmd: ParsableCommand {
                 tour: sp.path,
                 highlightEdges: Set(zip(sp.path, sp.path.dropFirst()).map { Edge(u: $0.0, v: $0.1) })
             )
-            let dotPath = gvPath.hasSuffix(".dot") ? gvPath : gvPath + ".dot"
-            try dot.write(toFile: dotPath, atomically: true, encoding: .utf8)
-            print("📐 DOT source written to \(dotPath)")
-            do {
-                try GraphvizExporter.render(dot: dot, to: gvPath, open: true)
-                print("🖼️ Graphviz render opened: \(gvPath)")
-            } catch GraphvizExporterError.dotNotFound {
-                print("⚠️  \(GraphvizExporterError.dotNotFound.localizedDescription)")
-            }
+            try emitGraphviz(dot: dot, to: gvPath)
         }
     }
 }
@@ -423,7 +395,7 @@ struct ColorCmd: ParsableCommand {
         let baseGraph = try RandomConnectedGraph.build(vertex: vertices, edge: edges)
         var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<vertices), kind: .undirected)
         for e in baseGraph.edges {
-            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            _ = try weightedGraph.addEdge(u: e.u, v: e.v)
             weightedGraph[e] = Double.random(in: 1.0...10.0).rounded()
         }
 
@@ -461,7 +433,7 @@ struct MatchCmd: ParsableCommand {
         let baseGraph = try BipartiteRandomGraph.build(partition: size, partition: size, edge: size * 2)
         var weightedGraph = AdjacentGraph<Int, Double>(vertices: Array(0..<(size * 2)), kind: .undirected)
         for e in baseGraph.edges {
-            _ = weightedGraph.addEdge(u: e.u, v: e.v)
+            _ = try weightedGraph.addEdge(u: e.u, v: e.v)
             weightedGraph[e] = Double.random(in: 1.0...15.0).rounded()
         }
 

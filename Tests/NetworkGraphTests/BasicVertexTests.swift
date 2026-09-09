@@ -56,17 +56,17 @@ final class BasicVertexTests: XCTestCase {
 
     func testRemoveVertexAdjustsCount() throws {
         var g = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2, 3])
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
-        _ = g.addEdge(u: 2, v: 3)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 2, v: 3)
         g.removeVertex(v: 1)
         XCTAssertEqual(g.vertexCount, 3, "one vertex should be removed")
     }
 
     func testRemoveVertexRemovesEdges() throws {
         var g = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2])
-        _ = g.addEdge(u: 0, v: 1)
-        _ = g.addEdge(u: 1, v: 2)
+        _ = try! g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 1, v: 2)
         g.removeVertex(v: 1)
         // The old vertex 2 is now at index 1 (re-indexed)
         XCTAssertEqual(g.edgeCount, 0, "edges incident on removed vertex should be gone")
@@ -74,7 +74,7 @@ final class BasicVertexTests: XCTestCase {
 
     func testRemoveNonExistentVertexIsNoop() throws {
         var g = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2])
-        _ = g.addEdge(u: 0, v: 1)
+        _ = try! g.addEdge(u: 0, v: 1)
         g.removeVertex(v: 99)   // 99 is not a vertex value
         XCTAssertEqual(g.vertexCount, 3)
         XCTAssertEqual(g.edgeCount, 1)

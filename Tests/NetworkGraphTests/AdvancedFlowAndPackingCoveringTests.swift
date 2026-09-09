@@ -16,11 +16,11 @@ final class AdvancedFlowAndPackingCoveringTests: XCTestCase {
         // Build 4-vertex diamond flow network:
         // 0 -> 1 (cap 10), 0 -> 2 (cap 10), 1 -> 3 (cap 10), 2 -> 3 (cap 10), 1 -> 2 (cap 5)
         var net = FlowNetwork(vertices: (0..<4).map { FlowVertex(label: "\($0)") }, kind: .directed)
-        _ = net.addEdge(u: 0, v: 1); net[Edge(u: 0, v: 1)] = FlowEdge(capacity: 10)
-        _ = net.addEdge(u: 0, v: 2); net[Edge(u: 0, v: 2)] = FlowEdge(capacity: 10)
-        _ = net.addEdge(u: 1, v: 3); net[Edge(u: 1, v: 3)] = FlowEdge(capacity: 10)
-        _ = net.addEdge(u: 2, v: 3); net[Edge(u: 2, v: 3)] = FlowEdge(capacity: 10)
-        _ = net.addEdge(u: 1, v: 2); net[Edge(u: 1, v: 2)] = FlowEdge(capacity: 5)
+        _ = try! net.addEdge(u: 0, v: 1); net[Edge(u: 0, v: 1)] = FlowEdge(capacity: 10)
+        _ = try! net.addEdge(u: 0, v: 2); net[Edge(u: 0, v: 2)] = FlowEdge(capacity: 10)
+        _ = try! net.addEdge(u: 1, v: 3); net[Edge(u: 1, v: 3)] = FlowEdge(capacity: 10)
+        _ = try! net.addEdge(u: 2, v: 3); net[Edge(u: 2, v: 3)] = FlowEdge(capacity: 10)
+        _ = try! net.addEdge(u: 1, v: 2); net[Edge(u: 1, v: 2)] = FlowEdge(capacity: 5)
 
         // Dinic max-flow
         let (dinicFlow, _) = AdvancedFlow.dinicMaxFlow(in: net, from: 0, to: 3)
@@ -34,11 +34,11 @@ final class AdvancedFlowAndPackingCoveringTests: XCTestCase {
     func test8_2_MinCostMaxFlow() {
         // 0 -> 1 (cap 2, cost 1), 0 -> 2 (cap 1, cost 2), 1 -> 2 (cap 1, cost 1), 1 -> 3 (cap 1, cost 3), 2 -> 3 (cap 2, cost 1)
         var net = FlowNetwork(vertices: (0..<4).map { FlowVertex(label: "\($0)") }, kind: .directed)
-        _ = net.addEdge(u: 0, v: 1); net[Edge(u: 0, v: 1)] = FlowEdge(capacity: 2, cost: 1)
-        _ = net.addEdge(u: 0, v: 2); net[Edge(u: 0, v: 2)] = FlowEdge(capacity: 1, cost: 2)
-        _ = net.addEdge(u: 1, v: 2); net[Edge(u: 1, v: 2)] = FlowEdge(capacity: 1, cost: 1)
-        _ = net.addEdge(u: 1, v: 3); net[Edge(u: 1, v: 3)] = FlowEdge(capacity: 1, cost: 3)
-        _ = net.addEdge(u: 2, v: 3); net[Edge(u: 2, v: 3)] = FlowEdge(capacity: 2, cost: 1)
+        _ = try! net.addEdge(u: 0, v: 1); net[Edge(u: 0, v: 1)] = FlowEdge(capacity: 2, cost: 1)
+        _ = try! net.addEdge(u: 0, v: 2); net[Edge(u: 0, v: 2)] = FlowEdge(capacity: 1, cost: 2)
+        _ = try! net.addEdge(u: 1, v: 2); net[Edge(u: 1, v: 2)] = FlowEdge(capacity: 1, cost: 1)
+        _ = try! net.addEdge(u: 1, v: 3); net[Edge(u: 1, v: 3)] = FlowEdge(capacity: 1, cost: 3)
+        _ = try! net.addEdge(u: 2, v: 3); net[Edge(u: 2, v: 3)] = FlowEdge(capacity: 2, cost: 1)
 
         let result = AdvancedFlow.minCostMaxFlow(in: net, from: 0, to: 3)
         XCTAssertEqual(result.maxFlow, 3.0)

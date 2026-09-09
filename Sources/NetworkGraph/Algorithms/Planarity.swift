@@ -35,7 +35,7 @@ public enum Planarity {
                     if compSet.contains(edge.u) && compSet.contains(edge.v) {
                         let uSub = comp.firstIndex(of: edge.u)!
                         let vSub = comp.firstIndex(of: edge.v)!
-                        _ = subg.addEdge(u: uSub, v: vSub)
+                        _ = subg._addEdge(u: uSub, v: vSub)
                     }
                 }
                 let res = isPlanarComponent(subg)
@@ -140,7 +140,7 @@ public enum Planarity {
         for i in 0..<m {
             for j in (i + 1)..<m {
                 if cyclesInterlace(fCycles[i], fCycles[j]) {
-                    _ = conflictGraph.addEdge(u: i, v: j)
+                    _ = conflictGraph._addEdge(u: i, v: j)
                 }
             }
         }

@@ -275,7 +275,7 @@ public enum PathsAndCycles {
         for e in edges {
             let w = Double(graph.edgeProperties[e] ?? W(0))
             if dist[e.u] != .infinity && dist[e.u] + w < dist[e.v] {
-                throw NetworkGraphError.illegalArgument(cause: "Graph contains a negative-weight cycle")
+                throw NetworkGraphError.negativeCycle
             }
         }
 
@@ -291,7 +291,7 @@ public enum PathsAndCycles {
         let result = dijkstra(graph: graph, source: source)
         var tree = AdjacentGraph<V, W>(vertices: graph.vertices, kind: .directed)
         for (v, e) in result.predecessors {
-            _ = tree.addEdge(u: e.u, v: v)
+            _ = tree._addEdge(u: e.u, v: v)
             if let prop = graph.edgeProperties[e] {
                 tree[Edge(u: e.u, v: v)] = prop
             }
@@ -393,6 +393,7 @@ public enum PathsAndCycles {
 
         var result = [first]
         var candidates: [(path: [Int], cost: Double)] = []
+        var seenPaths: Set<[Int]> = [first.path]
 
         for _ in 1..<k {
             let prevPath = result.last!.path
@@ -417,8 +418,10 @@ public enum PathsAndCycles {
                             let e = Edge(u: totalP[idx], v: totalP[idx + 1])
                             totalCost += Double(graph.edgeProperties[e] ?? W(1))
                         }
-                        if !candidates.contains(where: { $0.path == Array(totalP) }) && !result.contains(where: { $0.path == Array(totalP) }) {
-                            candidates.append((Array(totalP), totalCost))
+                        let finalPath = Array(totalP)
+                        if !seenPaths.contains(finalPath) {
+                            seenPaths.insert(finalPath)
+                            candidates.append((finalPath, totalCost))
                         }
                     }
                 }
@@ -646,7 +649,7 @@ public enum PathsAndCycles {
                 for i in 0..<(p.count - 1) {
                     let a = p[i]
                     let b = p[i + 1]
-                    _ = augmented.addEdge(u: a, v: b)
+                    _ = augmented._addEdge(u: a, v: b)
                     let w = graph.edgeProperties[Edge(u: a, v: b)] ?? graph.edgeProperties[Edge(u: b, v: a)] ?? W(1)
                     augmented[Edge(u: a, v: b)] = w
                 }
@@ -767,7 +770,7 @@ public enum PathsAndCycles {
         var metricGraph = AdjacentGraph<V, Double>(vertices: graph.vertices, kind: .undirected)
         for i in 0..<n {
             for j in (i + 1)..<n {
-                _ = metricGraph.addEdge(u: i, v: j)
+                _ = metricGraph._addEdge(u: i, v: j)
                 metricGraph[Edge(u: i, v: j)] = apsp.distances[i][j]
             }
         }
@@ -811,11 +814,11 @@ public enum PathsAndCycles {
         // 6. Build Eulerian multigraph H = T ∪ M
         var multigraph = AdjacentGraph<V, Double>(vertices: graph.vertices, kind: .undirected)
         for e in mst.edges {
-            _ = multigraph.addEdge(u: e.u, v: e.v)
+            _ = multigraph._addEdge(u: e.u, v: e.v)
             multigraph[Edge(u: e.u, v: e.v)] = apsp.distances[e.u][e.v]
         }
         for (u, v) in bestPairing {
-            _ = multigraph.addEdge(u: u, v: v)
+            _ = multigraph._addEdge(u: u, v: v)
             multigraph[Edge(u: u, v: v)] = apsp.distances[u][v]
         }
 

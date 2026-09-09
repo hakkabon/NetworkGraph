@@ -119,7 +119,7 @@ public enum GraphColoring {
         // Add all neighbors of edge.v to edge.u
         for neighbor in graph.adjacent(of: edge.v) where neighbor != edge.u && neighbor != edge.v {
             if !gContract.isAdjacent(u: edge.u, v: neighbor) {
-                _ = gContract.addEdge(u: edge.u, v: neighbor)
+                _ = gContract._addEdge(u: edge.u, v: neighbor)
             }
         }
         gContract.removeVertex(v: graph.vertices[edge.v])

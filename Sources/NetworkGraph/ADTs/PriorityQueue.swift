@@ -159,3 +159,6 @@ extension PriorityQueue: CustomStringConvertible, CustomDebugStringConvertible {
     public var debugDescription: String { return heap.debugDescription }
 }
 
+// MARK: - Sendable
+extension PriorityQueue: @unchecked Sendable where T: Sendable {}
+

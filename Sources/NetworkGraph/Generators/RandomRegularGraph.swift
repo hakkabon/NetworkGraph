@@ -41,7 +41,7 @@ public enum RandomRegularGraph {
             for i in 0..<V {
                 for j in (i + 1)..<V {
                     if !compGraph.isAdjacent(u: i, v: j) {
-                        _ = graph.addEdge(u: i, v: j)
+                        _ = graph._addEdge(u: i, v: j)
                     }
                 }
             }
@@ -83,7 +83,7 @@ public enum RandomRegularGraph {
             if isValid && edgeSet.count == (V * d) / 2 {
                 var graph = AdjacentGraph<Int, NoProperty>(vertices: Array(0..<V), kind: .undirected)
                 for edge in edgeSet {
-                    _ = graph.addEdge(u: edge.u, v: edge.v)
+                    _ = graph._addEdge(u: edge.u, v: edge.v)
                 }
                 return graph
             }
@@ -113,7 +113,7 @@ public enum RandomRegularGraph {
                 break
             }
 
-            _ = graph.addEdge(u: u, v: v)
+            _ = graph._addEdge(u: u, v: v)
             remainingDegrees[u] -= 1
             remainingDegrees[v] -= 1
         }

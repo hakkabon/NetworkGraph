@@ -48,7 +48,7 @@ public enum RandomIsomorphicGraph {
             if graph.kind == .undirected && edge.u > edge.v { continue }
             let u_perm = pi[edge.u]
             let v_perm = pi[edge.v]
-            _ = permutedGraph.addEdge(u: u_perm, v: v_perm)
+            _ = permutedGraph._addEdge(u: u_perm, v: v_perm)
             if let prop = graph.edgeProperties[edge] {
                 permutedGraph[Edge(u: u_perm, v: v_perm)] = prop
                 if graph.kind == .undirected && u_perm != v_perm {

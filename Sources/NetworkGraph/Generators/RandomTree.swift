@@ -46,7 +46,7 @@ public enum RandomTree {
             while !inTree[u] {
                 inTree[u] = true
                 let v = next[u]
-                _ = tree.addEdge(u: u, v: v)
+                _ = tree._addEdge(u: u, v: v)
                 u = v
             }
         }
@@ -80,7 +80,7 @@ public enum RandomTree {
         }
         if V == 2 {
             var g = AdjacentGraph<Int, NoProperty>(vertices: [0, 1], kind: .undirected)
-            _ = g.addEdge(u: 0, v: 1)
+            _ = g._addEdge(u: 0, v: 1)
             return g
         }
 
@@ -111,7 +111,7 @@ public enum RandomTree {
 
         var ptr = leafIndex
         for node in sequence {
-            _ = tree.addEdge(u: leafIndex, v: node)
+            _ = tree._addEdge(u: leafIndex, v: node)
             degree[leafIndex] -= 1
             degree[node] -= 1
 
@@ -135,7 +135,7 @@ public enum RandomTree {
             }
         }
         if u != -1 && v != -1 {
-            _ = tree.addEdge(u: u, v: v)
+            _ = tree._addEdge(u: u, v: v)
         }
 
         return tree
@@ -158,7 +158,7 @@ public enum RandomTree {
         // Recursive tree generation: assign random parent in existing connected set
         for v in 1..<V {
             let parent = Int.random(in: 0..<v)
-            _ = tree.addEdge(u: parent, v: v)
+            _ = tree._addEdge(u: parent, v: v)
         }
         return tree
     }

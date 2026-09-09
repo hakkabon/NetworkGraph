@@ -47,7 +47,7 @@ final class VisualizationTests: XCTestCase {
         var g = AdjacentGraph<Int, Double>(vertices: Array(0..<cities), kind: .undirected)
         for i in 0..<cities {
             for j in (i + 1)..<cities {
-                _ = g.addEdge(u: i, v: j)
+                _ = try! g.addEdge(u: i, v: j)
                 g[Edge(u: i, v: j)] = Double(i + j + 1)
             }
         }
@@ -67,8 +67,8 @@ final class VisualizationTests: XCTestCase {
 
     func testRustLayoutPreservesPinnedRanksAndRoutesByStableID() throws {
         var graph = AdjacentGraph<Int, NoProperty>(vertices: [0, 1, 2], kind: .directed)
-        _ = graph.addEdge(u: 0, v: 1)
-        _ = graph.addEdge(u: 1, v: 2)
+        _ = try! graph.addEdge(u: 0, v: 1)
+        _ = try! graph.addEdge(u: 1, v: 2)
 
         let options = GraphLayoutOptions(
             rankHints: [
@@ -88,7 +88,7 @@ final class VisualizationTests: XCTestCase {
 
     func testRustLayoutCanonicalizesUndirectedEdges() throws {
         var graph = AdjacentGraph<Int, NoProperty>(vertices: [0, 1], kind: .undirected)
-        _ = graph.addEdge(u: 0, v: 1)
+        _ = try! graph.addEdge(u: 0, v: 1)
 
         let visual = try GraphLayoutEngine().layout(graph)
 
@@ -114,10 +114,10 @@ final class VisualizationTests: XCTestCase {
 
     func testEdgeCostsAndTourBadgesRenderedInSVG() throws {
         var g = AdjacentGraph<Int, Double>(vertices: [0, 1, 2, 3], kind: .undirected)
-        _ = g.addEdge(u: 0, v: 1); g[Edge(u: 0, v: 1)] = 5.0
-        _ = g.addEdge(u: 1, v: 2); g[Edge(u: 1, v: 2)] = 12.0
-        _ = g.addEdge(u: 2, v: 3); g[Edge(u: 2, v: 3)] = 7.0
-        _ = g.addEdge(u: 3, v: 0); g[Edge(u: 3, v: 0)] = 9.0
+        _ = try! g.addEdge(u: 0, v: 1); g[Edge(u: 0, v: 1)] = 5.0
+        _ = try! g.addEdge(u: 1, v: 2); g[Edge(u: 1, v: 2)] = 12.0
+        _ = try! g.addEdge(u: 2, v: 3); g[Edge(u: 2, v: 3)] = 7.0
+        _ = try! g.addEdge(u: 3, v: 0); g[Edge(u: 3, v: 0)] = 9.0
 
         let vGraph = LayoutBridge.layoutCircular(
             graph: g,
@@ -151,8 +151,8 @@ final class VisualizationTests: XCTestCase {
 
     func testHullsAndPartitionsRenderedInSVG() throws {
         var g = AdjacentGraph<Int, Double>(vertices: [0, 1, 2, 3], kind: .undirected)
-        _ = g.addEdge(u: 0, v: 2); g[Edge(u: 0, v: 2)] = 10.0
-        _ = g.addEdge(u: 1, v: 3); g[Edge(u: 1, v: 3)] = 15.0
+        _ = try! g.addEdge(u: 0, v: 2); g[Edge(u: 0, v: 2)] = 10.0
+        _ = try! g.addEdge(u: 1, v: 3); g[Edge(u: 1, v: 3)] = 15.0
 
         let vBipartite = try LayoutBridge.layoutBipartite(
             graph: g,

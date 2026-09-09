@@ -50,7 +50,7 @@ public enum RandomConnectedGraph {
         let edgesToAdd = E - existingEdges.count
         for i in 0..<edgesToAdd {
             let e = missingEdges[i]
-            _ = graph.addEdge(u: e.u, v: e.v)
+            _ = graph._addEdge(u: e.u, v: e.v)
         }
 
         return graph
@@ -84,7 +84,7 @@ public enum RandomConnectedGraph {
             let v = cycle[(i + 1) % V]
             let norm = Edge(u: Swift.min(u, v), v: Swift.max(u, v))
             existingEdges.insert(norm)
-            _ = graph.addEdge(u: u, v: v)
+            _ = graph._addEdge(u: u, v: v)
         }
 
         if E > V {
@@ -101,7 +101,7 @@ public enum RandomConnectedGraph {
             let additional = E - V
             for i in 0..<additional {
                 let e = candidateChords[i]
-                _ = graph.addEdge(u: e.u, v: e.v)
+                _ = graph._addEdge(u: e.u, v: e.v)
             }
         }
 
